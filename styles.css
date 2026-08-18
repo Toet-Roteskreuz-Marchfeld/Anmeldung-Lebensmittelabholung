@@ -309,18 +309,6 @@ button.small {
   gap: 8px;
 }
 
-.print-groups {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  align-items: start;
-  margin-top: 10px;
-}
-
-.print-groups table {
-  font-size: 0.85rem;
-}
-
 .col-ew,
 .col-ki {
   font-weight: 700;
@@ -335,12 +323,6 @@ button.small {
   font-weight: 700;
   border-top: 2px solid var(--primary);
   background: #f3eee7;
-}
-
-@media (max-width: 700px) {
-  .print-groups {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media print {

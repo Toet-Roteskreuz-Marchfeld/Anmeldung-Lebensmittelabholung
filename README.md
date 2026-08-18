@@ -241,10 +241,9 @@ bezeichnet deshalb nicht mehr eine Kalenderwoche, sondern die aktuelle
 **Ausgabeperiode von Samstag 18 Uhr bis zum folgenden Samstag 18 Uhr**,
 berechnet in der Zeitzone Europa/Wien (unabhängig davon, wie das Gerät der
 Familie eingestellt ist – siehe `getPeriodKey()`/`getPeriodSaturday()` in
-`shared.js`). Alte Perioden werden nicht mehr gelöscht, sondern bleiben in
-der Datenbank erhalten; Admin-Ansicht, Anmeldung und Ausgabeliste filtern
-jeweils nur auf die aktuelle Periode. Der "Zurücksetzen"-Button in
-`admin.html` löscht bei Bedarf nur die Datensätze der laufenden Periode.
+`shared.js`). Alte Perioden werden nicht gelöscht, sondern bleiben in der
+Datenbank erhalten; Admin-Ansicht, Anmeldung und Ausgabeliste filtern
+jeweils nur auf die aktuelle Periode.
 
 ## Datenschutz
 

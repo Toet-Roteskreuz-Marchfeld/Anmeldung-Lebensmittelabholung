@@ -113,7 +113,6 @@ function initAdmin() {
   const resultsSection = document.getElementById('results-section');
   const loginForm = document.getElementById('admin-login-form');
   const loginMessage = document.getElementById('login-message');
-  const resetButton = document.getElementById('reset-week-button');
   const logoutButton = document.getElementById('logout-button');
 
   if (!loginForm || !loginMessage || !loginSection || !resultsSection) {
@@ -140,32 +139,6 @@ function initAdmin() {
     emailInput: document.getElementById('admin-email'),
     onSuccess: showResults
   });
-
-  if (resetButton) {
-    resetButton.addEventListener('click', async function () {
-      const confirmed = window.confirm(
-        'Willst du die aktuelle Woche wirklich zurücksetzen? Alle Antworten werden gelöscht.'
-      );
-
-      if (!confirmed) {
-        return;
-      }
-
-      const { error } = await supabaseClient
-        .from(TABLE_NAME)
-        .delete()
-        .eq('week_key', getPeriodKey());
-
-      if (error) {
-        console.error('Supabase delete error:', error);
-        setStatus(loginMessage, 'Fehler beim Zurücksetzen.', 'error');
-        return;
-      }
-
-      await renderResults();
-      setStatus(loginMessage, 'Die Anmeldeliste wurde für diese Woche zurückgesetzt.', 'success');
-    });
-  }
 
   wireLogout(logoutButton, showLogin);
 }

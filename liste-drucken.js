@@ -1,9 +1,4 @@
-function chunkIntoGroups(items, groupCount = 3) {
-  const size = Math.ceil(items.length / groupCount);
-  return Array.from({ length: groupCount }, (_, i) => items.slice(i * size, (i + 1) * size));
-}
-
-function sumGroup(rows) {
+function sumEntries(rows) {
   return rows.reduce(
     (acc, r) => ({
       ew: acc.ew + (r.ew || 0),
@@ -17,46 +12,36 @@ function sumGroup(rows) {
   );
 }
 
-function renderGroupTable(rows) {
-  const sums = sumGroup(rows);
-  const body = rows
-    .map(
-      (r) => `
-      <tr>
-        <td class="col-nr${r.gf ? ' gf-highlight' : ''}">${r.family_number}</td>
-        <td class="col-ew">${r.ew ?? ''}</td>
-        <td class="col-ki">${r.ki ?? ''}</td>
-        <td>${r.ep ? 'Ja' : ''}</td>
-        <td>${r.musl ? 'Ja' : ''}</td>
-        <td>${r.hund ?? ''}</td>
-        <td>${r.katze ?? ''}</td>
-        <td>${r.sonstiges ?? ''}</td>
-      </tr>`
-    )
-    .join('');
+function renderRow(r) {
+  return `
+    <tr>
+      <td class="col-nr${r.gf ? ' gf-highlight' : ''}">${r.family_number}</td>
+      <td class="col-ew">${r.ew ?? ''}</td>
+      <td class="col-ki">${r.ki ?? ''}</td>
+      <td>${r.ep ? 'Ja' : ''}</td>
+      <td>${r.musl ? 'Ja' : ''}</td>
+      <td>${r.hund ?? ''}</td>
+      <td>${r.katze ?? ''}</td>
+      <td>${r.sonstiges ?? ''}</td>
+    </tr>`;
+}
 
-  return `<table>
-    <thead>
-      <tr><th>Nr.</th><th>EW</th><th>Ki</th><th>EP</th><th>Musl.</th><th>Hund</th><th>Katze</th><th>Sonst.</th></tr>
-    </thead>
-    <tbody>${body}</tbody>
-    <tfoot>
-      <tr class="sum-row">
-        <td>Summe</td>
-        <td class="col-ew">${sums.ew}</td>
-        <td class="col-ki">${sums.ki}</td>
-        <td>${sums.ep}</td>
-        <td>${sums.musl}</td>
-        <td>${sums.hund}</td>
-        <td>${sums.katze}</td>
-        <td></td>
-      </tr>
-    </tfoot>
-  </table>`;
+function renderSumRow(sums) {
+  return `
+    <tr class="sum-row">
+      <td>Summe</td>
+      <td class="col-ew">${sums.ew}</td>
+      <td class="col-ki">${sums.ki}</td>
+      <td>${sums.ep}</td>
+      <td>${sums.musl}</td>
+      <td>${sums.hund}</td>
+      <td>${sums.katze}</td>
+      <td></td>
+    </tr>`;
 }
 
 async function loadPrintList() {
-  const printGroups = document.getElementById('print-groups');
+  const printBody = document.getElementById('print-body');
   const periodLabel = document.getElementById('period-label');
 
   periodLabel.textContent = `Ausgabeliste für Samstag, ${formatPeriodLabel()}`;
@@ -69,26 +54,25 @@ async function loadPrintList() {
 
   if (error) {
     console.error('Supabase print_list error:', error);
-    printGroups.innerHTML = '<p>Fehler beim Laden der Ausgabeliste.</p>';
+    printBody.innerHTML = '<tr><td colspan="8">Fehler beim Laden der Ausgabeliste.</td></tr>';
     return;
   }
 
   const entries = data || [];
 
   if (entries.length === 0) {
-    printGroups.innerHTML = '<p>Noch keine Anmeldungen für diese Woche.</p>';
+    printBody.innerHTML = '<tr><td colspan="8">Noch keine Anmeldungen für diese Woche.</td></tr>';
     return;
   }
 
-  const groups = chunkIntoGroups(entries, 3);
-  printGroups.innerHTML = groups.map(renderGroupTable).join('');
+  printBody.innerHTML = entries.map(renderRow).join('') + renderSumRow(sumEntries(entries));
 }
 
 function initDrucken() {
   const printButton = document.getElementById('print-button');
   const logoutButton = document.getElementById('liste-logout-button');
 
-  if (!document.getElementById('print-groups')) {
+  if (!document.getElementById('print-body')) {
     return;
   }
 
