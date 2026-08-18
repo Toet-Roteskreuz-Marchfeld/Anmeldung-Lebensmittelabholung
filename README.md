@@ -103,7 +103,6 @@ browserübergreifend.
    create table clients (
      id bigint generated always as identity primary key,
      nummer integer not null,
-     klientennummer integer,
      name text not null,
      telefon text,
      ew integer not null default 0,
@@ -202,6 +201,14 @@ browserübergreifend.
 
    revoke all on public.print_list from public, anon;
    grant select on public.print_list to authenticated;
+   ```
+
+   Falls dieses Skript schon einmal mit einer eigenen `klientennummer`-Spalte
+   ausgeführt wurde: die getrennte Klientennummer war ein Fehlgriff, es gibt
+   nur eine Nummer (`nummer`). Einmalig nachziehen:
+
+   ```sql
+   alter table clients drop column if exists klientennummer;
    ```
 
 4. Unter **Authentication → Users** einen Admin-Account per "Add user"

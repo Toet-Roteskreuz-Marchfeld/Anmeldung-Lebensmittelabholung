@@ -59,7 +59,6 @@ function initClients() {
   function fillForm(client) {
     document.getElementById('client-id').value = client.id;
     document.getElementById('client-nummer').value = client.nummer;
-    document.getElementById('client-klientennummer').value = client.klientennummer ?? '';
     document.getElementById('client-name').value = client.name;
     document.getElementById('client-telefon').value = client.telefon ?? '';
     document.getElementById('client-ew').value = client.ew;
@@ -79,9 +78,6 @@ function initClients() {
     const id = document.getElementById('client-id').value;
     const payload = {
       nummer: Number(document.getElementById('client-nummer').value),
-      klientennummer: document.getElementById('client-klientennummer').value
-        ? Number(document.getElementById('client-klientennummer').value)
-        : null,
       name: document.getElementById('client-name').value.trim(),
       telefon: document.getElementById('client-telefon').value.trim() || null,
       ew: Number(document.getElementById('client-ew').value) || 0,
@@ -161,7 +157,7 @@ function initClients() {
 
   function renderClients(list) {
     if (list.length === 0) {
-      clientsBody.innerHTML = '<tr><td colspan="13">Keine Klienten gefunden.</td></tr>';
+      clientsBody.innerHTML = '<tr><td colspan="12">Keine Klienten gefunden.</td></tr>';
       return;
     }
 
@@ -170,7 +166,6 @@ function initClients() {
         (c) => `
         <tr>
           <td>${c.nummer}</td>
-          <td>${c.klientennummer ?? ''}</td>
           <td>${c.name}</td>
           <td>${c.telefon ?? ''}</td>
           <td>${c.ew}</td>
@@ -198,7 +193,7 @@ function initClients() {
 
     if (error) {
       console.error('Supabase clients load error:', error);
-      clientsBody.innerHTML = '<tr><td colspan="13">Fehler beim Laden der Klienten.</td></tr>';
+      clientsBody.innerHTML = '<tr><td colspan="12">Fehler beim Laden der Klienten.</td></tr>';
       return;
     }
 
