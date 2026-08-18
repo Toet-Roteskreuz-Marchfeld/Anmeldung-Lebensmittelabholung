@@ -56,21 +56,16 @@ function initForm() {
     const submitButton = form.querySelector('button[type="submit"]');
     submitButton.disabled = true;
 
-    const { error } = await supabaseClient
-      .from(TABLE_NAME)
-      .upsert(
-        {
-          week_key: getWeekKey(),
-          family_number: Number(familyNumber),
-          attendance: attendance.value
-        },
-        { onConflict: 'week_key,family_number', returning: 'minimal' }
-      );
+    const { error } = await supabaseClient.rpc('submit_attendance', {
+      p_week_key: getWeekKey(),
+      p_family_number: Number(familyNumber),
+      p_attendance: attendance.value
+    });
 
     submitButton.disabled = false;
 
     if (error) {
-      console.error('Supabase upsert error:', error);
+      console.error('Supabase submit_attendance error:', error);
       setStatus(message, 'Fehler beim Speichern. Bitte versuche es erneut.', 'error');
       return;
     }

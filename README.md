@@ -39,21 +39,6 @@ browserübergreifend.
 
    alter table attendance enable row level security;
 
-   -- Jede/r darf eine Antwort abgeben ...
-   -- ("to public" statt "to anon", damit das auch funktioniert, wenn im
-   -- selben Browser gerade eine eingeloggte Admin-Session aktiv ist)
-   create policy "anyone can submit a response"
-     on attendance for insert
-     to public
-     with check (true);
-
-   -- ... und die eigene Antwort für dieselbe Woche aktualisieren.
-   create policy "anyone can update a response"
-     on attendance for update
-     to public
-     using (true)
-     with check (true);
-
    -- Nur eingeloggte Admins dürfen die Liste einsehen.
    create policy "only admins can view responses"
      on attendance for select
@@ -65,6 +50,41 @@ browserübergreifend.
      on attendance for delete
      to authenticated
      using (true);
+
+   -- Öffentliches Speichern/Aktualisieren läuft bewusst NICHT über eine
+   -- INSERT/UPDATE-Policy für anon, sondern über diese Funktion:
+   -- "INSERT ... ON CONFLICT DO UPDATE" (unser Upsert) verlangt von der
+   -- ausführenden Rolle zusätzlich eine passende SELECT-Policy auf die
+   -- betroffene Zeile (Postgres muss prüfen, ob es einen Konflikt gibt).
+   -- Da anon absichtlich nichts lesen darf, würde ein direkter Upsert-Zugriff
+   -- als anon immer an genau dieser Regel scheitern. Die Funktion läuft
+   -- stattdessen mit den Rechten ihres Besitzers (security definer) und
+   -- umgeht damit die RLS der Tabelle komplett, ist selbst aber auf genau
+   -- diesen einen, klar begrenzten Vorgang beschränkt.
+   create or replace function public.submit_attendance(
+     p_week_key text,
+     p_family_number integer,
+     p_attendance text
+   )
+   returns void
+   language plpgsql
+   security definer
+   set search_path = public
+   as $$
+   begin
+     if p_attendance not in ('ja', 'nein') then
+       raise exception 'invalid attendance value: %', p_attendance;
+     end if;
+
+     insert into attendance (week_key, family_number, attendance)
+     values (p_week_key, p_family_number, p_attendance)
+     on conflict (week_key, family_number)
+     do update set attendance = excluded.attendance, created_at = now();
+   end;
+   $$;
+
+   revoke all on function public.submit_attendance(text, integer, text) from public;
+   grant execute on function public.submit_attendance(text, integer, text) to anon, authenticated;
    ```
 
 3. Unter **Authentication → Users** einen Admin-Account per "Add user"
