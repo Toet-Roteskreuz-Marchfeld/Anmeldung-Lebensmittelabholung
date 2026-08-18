@@ -43,12 +43,6 @@ function getPeriodSaturday(date = new Date()) {
   return saturday;
 }
 
-function getPeriodKey(date = new Date()) {
-  const s = getPeriodSaturday(date);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${s.getUTCFullYear()}-${pad(s.getUTCMonth() + 1)}-${pad(s.getUTCDate())}`;
-}
-
 function formatPeriodLabel(date = new Date()) {
   const s = getPeriodSaturday(date);
   return new Intl.DateTimeFormat('de-DE', {

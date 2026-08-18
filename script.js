@@ -1,5 +1,3 @@
-const TABLE_NAME = 'attendance';
-
 function initForm() {
   const form = document.getElementById('attendance-form');
   const message = document.getElementById('form-message');
@@ -23,7 +21,6 @@ function initForm() {
     submitButton.disabled = true;
 
     const { error } = await supabaseClient.rpc('submit_attendance', {
-      p_week_key: getPeriodKey(),
       p_family_number: Number(familyNumber),
       p_attendance: attendance.value
     });
@@ -55,9 +52,8 @@ async function renderResults() {
   weekLabel.textContent = `Anmeldungen für Samstag, ${formatPeriodLabel()}`;
 
   const { data, error } = await supabaseClient
-    .from(TABLE_NAME)
+    .from('current_attendance')
     .select('family_number, attendance, created_at')
-    .eq('week_key', getPeriodKey())
     .order('family_number', { ascending: true });
 
   if (error) {

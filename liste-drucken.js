@@ -49,7 +49,6 @@ async function loadPrintList() {
   const { data, error } = await supabaseClient
     .from('print_list')
     .select('family_number, ew, ki, gf, ep, musl, hund, katze, sonstiges')
-    .eq('week_key', getPeriodKey())
     .order('family_number', { ascending: true });
 
   if (error) {

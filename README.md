@@ -33,13 +33,15 @@ browserübergreifend.
    und die Zugriffsregeln (Row Level Security) anzulegen:
 
    ```sql
+   -- Kein week_key: zu welcher Ausgabeperiode eine Zeile gehört, wird bei
+   -- jeder Abfrage aus created_at berechnet (siehe current_period_start()
+   -- weiter unten). Auch kein unique(family_number) - mehrfache An-/
+   -- Abmeldungen pro Familie sind erlaubt, die neueste zählt.
    create table attendance (
      id bigint generated always as identity primary key,
-     week_key text not null,
      family_number integer not null,
      attendance text not null check (attendance in ('ja', 'nein')),
-     created_at timestamptz not null default now(),
-     unique (week_key, family_number)
+     created_at timestamptz not null default now()
    );
 
    alter table attendance enable row level security;
@@ -50,24 +52,20 @@ browserübergreifend.
      to authenticated
      using (true);
 
-   -- Nur eingeloggte Admins dürfen die Woche zurücksetzen.
+   -- Nur eingeloggte Admins dürfen Anmeldungen löschen.
    create policy "only admins can delete responses"
      on attendance for delete
      to authenticated
      using (true);
 
-   -- Öffentliches Speichern/Aktualisieren läuft bewusst NICHT über eine
-   -- INSERT/UPDATE-Policy für anon, sondern über diese Funktion:
-   -- "INSERT ... ON CONFLICT DO UPDATE" (unser Upsert) verlangt von der
-   -- ausführenden Rolle zusätzlich eine passende SELECT-Policy auf die
-   -- betroffene Zeile (Postgres muss prüfen, ob es einen Konflikt gibt).
-   -- Da anon absichtlich nichts lesen darf, würde ein direkter Upsert-Zugriff
-   -- als anon immer an genau dieser Regel scheitern. Die Funktion läuft
-   -- stattdessen mit den Rechten ihres Besitzers (security definer) und
-   -- umgeht damit die RLS der Tabelle komplett, ist selbst aber auf genau
-   -- diesen einen, klar begrenzten Vorgang beschränkt.
+   -- Öffentliches Speichern läuft bewusst NICHT über eine INSERT-Policy für
+   -- anon, sondern über diese Funktion: ein direkter anon-Insert über die
+   -- Data API scheiterte an einem Supabase-Plattformproblem. Die Funktion
+   -- läuft stattdessen mit den Rechten ihres Besitzers (security definer)
+   -- und umgeht damit die RLS der Tabelle, ist selbst aber auf genau diesen
+   -- einen, klar begrenzten Vorgang beschränkt. Es ist immer ein reines
+   -- INSERT (kein Upsert) - mehrfache An-/Abmeldungen sind erlaubt.
    create or replace function public.submit_attendance(
-     p_week_key text,
      p_family_number integer,
      p_attendance text
    )
@@ -81,15 +79,13 @@ browserübergreifend.
        raise exception 'invalid attendance value: %', p_attendance;
      end if;
 
-     insert into attendance (week_key, family_number, attendance)
-     values (p_week_key, p_family_number, p_attendance)
-     on conflict (week_key, family_number)
-     do update set attendance = excluded.attendance, created_at = now();
+     insert into attendance (family_number, attendance)
+     values (p_family_number, p_attendance);
    end;
    $$;
 
-   revoke all on function public.submit_attendance(text, integer, text) from public;
-   grant execute on function public.submit_attendance(text, integer, text) to anon, authenticated;
+   revoke all on function public.submit_attendance(integer, text) from public;
+   grant execute on function public.submit_attendance(integer, text) to anon, authenticated;
    ```
 
 3. Im selben **SQL Editor** zusätzlich folgendes Skript ausführen, um die
@@ -184,20 +180,65 @@ browserübergreifend.
      to authenticated
      using (public.is_admin_account());
 
+   -- Es gibt keine gespeicherte Perioden-Kennung mehr. Die aktuelle
+   -- Ausgabeperiode (Samstag 18 Uhr bis zum folgenden Samstag 18 Uhr,
+   -- Europe/Vienna) wird bei jeder Abfrage aus "jetzt" berechnet - dieselbe
+   -- Logik wie getPeriodSaturday() in shared.js, nur serverseitig.
+   create or replace function public.current_period_start()
+   returns timestamptz
+   language plpgsql
+   stable
+   as $$
+   declare
+     local_now timestamp := now() at time zone 'Europe/Vienna';
+     days_since_saturday int := (extract(dow from local_now)::int - 6 + 7) % 7;
+     candidate timestamp := date_trunc('day', local_now)
+       - (days_since_saturday || ' days')::interval
+       + interval '18 hours';
+   begin
+     if candidate > local_now then
+       candidate := candidate - interval '7 days';
+     end if;
+
+     return candidate at time zone 'Europe/Vienna';
+   end;
+   $$;
+
+   -- Interne Basis (nicht direkt gegrantet): pro Familiennummer nur die
+   -- neueste Zeile innerhalb der aktuellen Periode - mehrfache An-/
+   -- Abmeldungen sind erlaubt, hier zählt immer die zuletzt gespeicherte.
+   create or replace view public.current_attendance_base as
+   select distinct on (family_number)
+     family_number, attendance, created_at
+   from attendance
+   where created_at >= public.current_period_start()
+   order by family_number, created_at desc;
+
+   revoke all on public.current_attendance_base from public, anon, authenticated;
+
+   -- Admin-Ansicht auf die aktuelle Periode. Die View selbst umgeht RLS
+   -- (Eigentümer-Rechte, wie "submit_attendance"), deshalb wird die
+   -- Admin-Prüfung hier explizit nachgebildet statt über RLS auf
+   -- "attendance" zu laufen.
+   create or replace view public.current_attendance as
+   select family_number, attendance, created_at
+   from public.current_attendance_base
+   where public.is_admin_account();
+
+   grant select on public.current_attendance to authenticated;
+
    -- Ausgabeliste: verknüpft die aktuellen "Ja"-Antworten mit den
    -- Haushaltsdaten aus "clients", liefert aber nie Name/Telefon, weil
-   -- diese Spalten gar nicht erst selektiert werden. Die View läuft mit
-   -- den Rechten ihres Eigentümers (wie schon "submit_attendance") und
-   -- umgeht damit RLS auf beiden Basistabellen - Admin und Listen-Gruppe
-   -- dürfen sie beide lesen.
+   -- diese Spalten gar nicht erst selektiert werden. Bewusst NICHT über
+   -- current_attendance (das wäre admin-only) - Admin und Listen-Gruppe
+   -- dürfen die Ausgabeliste beide lesen.
    create or replace view public.print_list as
    select
-     a.week_key,
-     a.family_number,
+     cab.family_number,
      c.ew, c.ki, c.gf, c.ep, c.musl, c.hund, c.katze, c.sonstiges
-   from attendance a
-   left join clients c on c.nummer = a.family_number
-   where a.attendance = 'ja';
+   from public.current_attendance_base cab
+   left join clients c on c.nummer = cab.family_number
+   where cab.attendance = 'ja';
 
    revoke all on public.print_list from public, anon;
    grant select on public.print_list to authenticated;
@@ -210,6 +251,23 @@ browserübergreifend.
    ```sql
    alter table clients drop column if exists klientennummer;
    ```
+
+   Falls dieses Skript schon einmal mit einer `week_key`-Spalte auf
+   `attendance` ausgeführt wurde: `week_key` wurde entfernt, die aktuelle
+   Periode wird stattdessen bei jeder Abfrage aus `created_at` berechnet
+   (siehe `current_period_start()` oben) und mehrfache An-/Abmeldungen pro
+   Familie sind jetzt erlaubt (die neueste zählt). Einmalig nachziehen:
+
+   ```sql
+   drop view if exists public.print_list;
+   drop function if exists public.submit_attendance(text, integer, text);
+   alter table attendance drop column if exists week_key;
+   ```
+
+   Anschließend die `submit_attendance`-Funktion aus Schritt 2 sowie
+   `current_period_start()`, `current_attendance_base`, `current_attendance`
+   und `print_list` aus dem Skript oben (erneut) ausführen - alle vier sind
+   als `create or replace` geschrieben und daher gefahrlos wiederholbar.
 
 4. Unter **Authentication → Users** einen Admin-Account per "Add user"
    anlegen (E-Mail + Passwort). Damit meldet man sich später in `admin.html`
@@ -243,14 +301,18 @@ browserübergreifend.
 
 ## Wochenlogik
 
-Die Tafel-Ausgabe findet immer samstags statt. Der Schlüssel `week_key`
-bezeichnet deshalb nicht mehr eine Kalenderwoche, sondern die aktuelle
-**Ausgabeperiode von Samstag 18 Uhr bis zum folgenden Samstag 18 Uhr**,
-berechnet in der Zeitzone Europa/Wien (unabhängig davon, wie das Gerät der
-Familie eingestellt ist – siehe `getPeriodKey()`/`getPeriodSaturday()` in
-`shared.js`). Alte Perioden werden nicht gelöscht, sondern bleiben in der
-Datenbank erhalten; Admin-Ansicht, Anmeldung und Ausgabeliste filtern
-jeweils nur auf die aktuelle Periode.
+Die Tafel-Ausgabe findet immer samstags statt. `attendance` speichert dafür
+keine eigene Perioden-Kennung – jede An-/Abmeldung ist einfach eine neue
+Zeile mit ihrem `created_at`-Zeitstempel. Ob eine Zeile zur **aktuellen
+Ausgabeperiode (Samstag 18 Uhr bis zum folgenden Samstag 18 Uhr, Zeitzone
+Europa/Wien)** gehört, wird bei jeder Abfrage aus `created_at` berechnet –
+serverseitig über die SQL-Funktion `current_period_start()`, im Browser über
+`getPeriodSaturday()`/`formatPeriodLabel()` in `shared.js` (nur noch für die
+Anzeige, nicht mehr für Abfragen). Mehrfache An-/Abmeldungen derselben
+Familie innerhalb einer Periode sind kein Problem – die zeitlich neueste
+zählt (`current_attendance`/`print_list` wählen das automatisch aus). Alte
+Perioden werden nicht gelöscht, sondern bleiben unverändert in der
+Datenbank erhalten.
 
 ## Datenschutz
 
