@@ -162,6 +162,10 @@ button.secondary {
   font-weight: 700;
 }
 
+.links a + a {
+  margin-left: 16px;
+}
+
 .admin-container {
   max-width: 900px;
 }
@@ -280,5 +284,83 @@ th {
 
   .stats {
     grid-template-columns: 1fr;
+  }
+}
+
+input[type='text'],
+input[type='tel'],
+textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 1rem;
+  background: #fff;
+  font-family: inherit;
+}
+
+button.small {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.print-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 10px;
+}
+
+.print-groups table {
+  font-size: 0.85rem;
+}
+
+.col-ew,
+.col-ki {
+  font-weight: 700;
+}
+
+.col-nr.gf-highlight {
+  background: rgba(201, 139, 82, 0.25);
+  font-weight: 700;
+}
+
+.sum-row td {
+  font-weight: 700;
+  border-top: 2px solid var(--primary);
+  background: #f3eee7;
+}
+
+@media (max-width: 700px) {
+  .print-groups {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .container {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .card {
+    box-shadow: none;
+    border: none;
+  }
+
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
   }
 }

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Listen-Gruppe - Team Österreich Tafel Marchfeld</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="card hero">
+        <p class="eyebrow">Team Österreich Tafel Marchfeld</p>
+        <h1>Listen-Gruppe</h1>
+        <p class="subtitle">
+          Bitte gib das gemeinsame Passwort für die Ausgabeliste ein.
+        </p>
+      </header>
+
+      <section id="login-section" class="card form-card">
+        <form id="liste-login-form">
+          <div class="field-group">
+            <label for="liste-password">Passwort</label>
+            <input
+              id="liste-password"
+              name="liste-password"
+              type="password"
+              placeholder="Passwort eingeben"
+              required
+            />
+          </div>
+          <button type="submit">Anmelden</button>
+        </form>
+        <p id="login-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section id="landing-section" class="card results-card hidden">
+        <h2 id="period-label">Aktuelle Periode</h2>
+        <div class="results-actions">
+          <button id="open-print-button" type="button">Ausgabeliste öffnen</button>
+          <button id="liste-logout-button" class="secondary" type="button">
+            Abmelden
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="shared.js"></script>
+    <script src="liste.js"></script>
+  </body>
+</html>

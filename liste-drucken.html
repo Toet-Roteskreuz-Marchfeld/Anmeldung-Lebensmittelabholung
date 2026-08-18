@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ausgabeliste - Team Österreich Tafel Marchfeld</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container admin-container">
+      <header class="card hero admin-hero no-print">
+        <p class="eyebrow">Team Österreich Tafel Marchfeld</p>
+        <h1>Ausgabeliste</h1>
+      </header>
+
+      <section class="card results-card">
+        <div class="results-header no-print">
+          <h2 id="period-label">Ausgabeliste</h2>
+          <div class="results-actions">
+            <button id="print-button" type="button">Drucken</button>
+            <button id="liste-logout-button" class="secondary" type="button">
+              Abmelden
+            </button>
+          </div>
+        </div>
+
+        <div id="print-groups" class="print-groups"></div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="shared.js"></script>
+    <script src="liste-drucken.js"></script>
+  </body>
+</html>

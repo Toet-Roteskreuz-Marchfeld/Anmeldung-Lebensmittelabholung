@@ -1,38 +1,4 @@
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const TABLE_NAME = 'attendance';
-
-function getCurrentWeekStart(date = new Date()) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = (day === 0 ? -6 : 1 - day);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + diff);
-  return d;
-}
-
-function formatWeekLabel(date) {
-  const start = getCurrentWeekStart(date);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-
-  const format = (value) =>
-    new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit' }).format(value);
-
-  return `${format(start)} - ${format(end)}`;
-}
-
-function getWeekKey(date = new Date()) {
-  const d = getCurrentWeekStart(date);
-  return d.toISOString().slice(0, 10);
-}
-
-function setStatus(element, message, type) {
-  element.textContent = message;
-  element.className = 'message';
-  if (type) {
-    element.classList.add(type);
-  }
-}
 
 function initForm() {
   const form = document.getElementById('attendance-form');
@@ -57,7 +23,7 @@ function initForm() {
     submitButton.disabled = true;
 
     const { error } = await supabaseClient.rpc('submit_attendance', {
-      p_week_key: getWeekKey(),
+      p_week_key: getPeriodKey(),
       p_family_number: Number(familyNumber),
       p_attendance: attendance.value
     });
@@ -86,12 +52,12 @@ async function renderResults() {
     return;
   }
 
-  weekLabel.textContent = `Woche ${formatWeekLabel(new Date())}`;
+  weekLabel.textContent = `Anmeldungen für Samstag, ${formatPeriodLabel()}`;
 
   const { data, error } = await supabaseClient
     .from(TABLE_NAME)
     .select('family_number, attendance, created_at')
-    .eq('week_key', getWeekKey())
+    .eq('week_key', getPeriodKey())
     .order('family_number', { ascending: true });
 
   if (error) {
@@ -166,32 +132,13 @@ function initAdmin() {
     loginForm.reset();
   }
 
-  supabaseClient.auth.getSession().then(({ data }) => {
-    if (data.session) {
-      showResults();
-    }
-  });
+  requireSession(showResults);
 
-  loginForm.addEventListener('submit', async function (event) {
-    event.preventDefault();
-
-    const email = document.getElementById('admin-email').value.trim();
-    const password = document.getElementById('admin-password').value;
-
-    const submitButton = loginForm.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-
-    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-    submitButton.disabled = false;
-
-    if (error) {
-      console.error('Supabase login error:', error);
-      setStatus(loginMessage, 'E-Mail oder Passwort ist falsch.', 'error');
-      return;
-    }
-
-    showResults();
+  wireLoginForm({
+    form: loginForm,
+    message: loginMessage,
+    emailInput: document.getElementById('admin-email'),
+    onSuccess: showResults
   });
 
   if (resetButton) {
@@ -207,7 +154,7 @@ function initAdmin() {
       const { error } = await supabaseClient
         .from(TABLE_NAME)
         .delete()
-        .eq('week_key', getWeekKey());
+        .eq('week_key', getPeriodKey());
 
       if (error) {
         console.error('Supabase delete error:', error);
@@ -220,12 +167,7 @@ function initAdmin() {
     });
   }
 
-  if (logoutButton) {
-    logoutButton.addEventListener('click', async function () {
-      await supabaseClient.auth.signOut();
-      showLogin();
-    });
-  }
+  wireLogout(logoutButton, showLogin);
 }
 
 window.addEventListener('DOMContentLoaded', function () {

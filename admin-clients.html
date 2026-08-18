@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Klientenverwaltung - Team Österreich Tafel Marchfeld</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container admin-container">
+      <header class="card hero admin-hero">
+        <p class="eyebrow">Team Österreich Tafel Marchfeld – Verwaltung</p>
+        <h1>Klientenverwaltung</h1>
+      </header>
+
+      <section id="login-section" class="card form-card">
+        <form id="admin-login-form">
+          <div class="field-group">
+            <label for="admin-email">E-Mail</label>
+            <input
+              id="admin-email"
+              name="admin-email"
+              type="email"
+              placeholder="admin@example.com"
+              required
+            />
+          </div>
+          <div class="field-group">
+            <label for="admin-password">Passwort</label>
+            <input
+              id="admin-password"
+              name="admin-password"
+              type="password"
+              placeholder="Passwort eingeben"
+              required
+            />
+          </div>
+          <button type="submit">Anmelden</button>
+        </form>
+        <p id="login-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section id="clients-section" class="card results-card hidden">
+        <div class="results-header">
+          <h2>Klienten</h2>
+          <div class="results-actions">
+            <button id="new-client-button" type="button">Neuer Klient</button>
+            <button id="clients-logout-button" class="secondary" type="button">
+              Abmelden
+            </button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="client-search">Suche</label>
+          <input
+            id="client-search"
+            type="text"
+            placeholder="Nummer, Name oder Telefon"
+          />
+        </div>
+
+        <form id="client-form" class="card form-card hidden">
+          <input type="hidden" id="client-id" />
+
+          <div class="field-group">
+            <label for="client-nummer">Anmeldenummer</label>
+            <input id="client-nummer" type="number" min="1" required />
+          </div>
+
+          <div class="field-group">
+            <label for="client-klientennummer">Klientennummer</label>
+            <input id="client-klientennummer" type="number" min="1" />
+          </div>
+
+          <div class="field-group">
+            <label for="client-name">Name</label>
+            <input id="client-name" type="text" required />
+          </div>
+
+          <div class="field-group">
+            <label for="client-telefon">Telefon</label>
+            <input id="client-telefon" type="tel" />
+          </div>
+
+          <div class="field-group">
+            <label for="client-ew">Erwachsene im Haushalt</label>
+            <input id="client-ew" type="number" min="0" value="0" />
+          </div>
+
+          <div class="field-group">
+            <label for="client-ki">Kinder im Haushalt</label>
+            <input id="client-ki" type="number" min="0" value="0" />
+          </div>
+
+          <div class="field-group">
+            <label for="client-hund">Anzahl Hunde</label>
+            <input id="client-hund" type="number" min="0" value="0" />
+          </div>
+
+          <div class="field-group">
+            <label for="client-katze">Anzahl Katzen</label>
+            <input id="client-katze" type="number" min="0" value="0" />
+          </div>
+
+          <fieldset class="field-group">
+            <legend>Sonstige Merkmale</legend>
+            <label class="option">
+              <input type="checkbox" id="client-gf" />
+              <span>Großfamilie</span>
+            </label>
+            <label class="option">
+              <input type="checkbox" id="client-ep" />
+              <span>Einpersonenhaushalt</span>
+            </label>
+            <label class="option">
+              <input type="checkbox" id="client-musl" />
+              <span>Muslimisch</span>
+            </label>
+          </fieldset>
+
+          <div class="field-group">
+            <label for="client-sonstiges">Sonstiges</label>
+            <textarea id="client-sonstiges" rows="3"></textarea>
+          </div>
+
+          <div class="row-actions">
+            <button type="submit">Speichern</button>
+            <button id="client-cancel-button" class="secondary" type="button">
+              Abbrechen
+            </button>
+          </div>
+
+          <p id="client-form-message" class="message" aria-live="polite"></p>
+        </form>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nr.</th>
+                <th>Klientennr.</th>
+                <th>Name</th>
+                <th>Telefon</th>
+                <th>EW</th>
+                <th>Ki</th>
+                <th>GF</th>
+                <th>EP</th>
+                <th>Musl.</th>
+                <th>Hund</th>
+                <th>Katze</th>
+                <th>Sonstiges</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="clients-body"></tbody>
+          </table>
+        </div>
+
+        <nav class="links">
+          <a href="admin.html">Zurück zu den Anmeldungen</a>
+        </nav>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="shared.js"></script>
+    <script src="admin-clients.js"></script>
+  </body>
+</html>
