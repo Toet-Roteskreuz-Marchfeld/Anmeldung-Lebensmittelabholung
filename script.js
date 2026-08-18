@@ -70,6 +70,7 @@ function initForm() {
     submitButton.disabled = false;
 
     if (error) {
+      console.error('Supabase upsert error:', error);
       setStatus(message, 'Fehler beim Speichern. Bitte versuche es erneut.', 'error');
       return;
     }
@@ -99,6 +100,7 @@ async function renderResults() {
     .order('family_number', { ascending: true });
 
   if (error) {
+    console.error('Supabase select error:', error);
     resultsBody.innerHTML = `
       <tr>
         <td colspan="3">Fehler beim Laden der Daten.</td>
@@ -189,6 +191,7 @@ function initAdmin() {
     submitButton.disabled = false;
 
     if (error) {
+      console.error('Supabase login error:', error);
       setStatus(loginMessage, 'E-Mail oder Passwort ist falsch.', 'error');
       return;
     }
@@ -212,6 +215,7 @@ function initAdmin() {
         .eq('week_key', getWeekKey());
 
       if (error) {
+        console.error('Supabase delete error:', error);
         setStatus(loginMessage, 'Fehler beim Zurücksetzen.', 'error');
         return;
       }

@@ -40,15 +40,17 @@ browserübergreifend.
    alter table attendance enable row level security;
 
    -- Jede/r darf eine Antwort abgeben ...
+   -- ("to public" statt "to anon", damit das auch funktioniert, wenn im
+   -- selben Browser gerade eine eingeloggte Admin-Session aktiv ist)
    create policy "anyone can submit a response"
      on attendance for insert
-     to anon
+     to public
      with check (true);
 
    -- ... und die eigene Antwort für dieselbe Woche aktualisieren.
    create policy "anyone can update a response"
      on attendance for update
-     to anon
+     to public
      using (true)
      with check (true);
 
