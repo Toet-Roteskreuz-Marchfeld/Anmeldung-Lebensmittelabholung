@@ -4,7 +4,6 @@ function initListe() {
   const loginForm = document.getElementById('liste-login-form');
   const loginMessage = document.getElementById('login-message');
   const periodLabel = document.getElementById('period-label');
-  const openPrintButton = document.getElementById('open-print-button');
   const logoutButton = document.getElementById('liste-logout-button');
 
   if (!loginForm || !landingSection) {
@@ -31,12 +30,6 @@ function initListe() {
     fixedEmail: LISTE_ACCOUNT_EMAIL,
     onSuccess: showLanding
   });
-
-  if (openPrintButton) {
-    openPrintButton.addEventListener('click', function () {
-      window.location.href = 'liste-drucken.html';
-    });
-  }
 
   wireLogout(logoutButton, showLogin);
 }

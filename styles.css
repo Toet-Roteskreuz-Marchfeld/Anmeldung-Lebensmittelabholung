@@ -166,6 +166,34 @@ button.secondary {
   margin-left: 16px;
 }
 
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.app-nav a {
+  padding: 8px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--primary-dark);
+  background: #f3eee7;
+  border: 1px solid var(--border);
+}
+
+.app-nav a:hover {
+  background: #ece5da;
+}
+
+.app-nav a.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
 .admin-container {
   max-width: 900px;
 }
