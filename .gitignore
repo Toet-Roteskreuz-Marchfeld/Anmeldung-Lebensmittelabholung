@@ -1,0 +1,7 @@
+# Lokale Claude Code Einstellungen
+.claude/
+
+# Editor-/OS-Artefakte
+.vscode/
+.DS_Store
+Thumbs.db
