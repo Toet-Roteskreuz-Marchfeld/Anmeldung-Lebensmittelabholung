@@ -64,7 +64,7 @@ function initForm() {
           family_number: Number(familyNumber),
           attendance: attendance.value
         },
-        { onConflict: 'week_key,family_number' }
+        { onConflict: 'week_key,family_number', returning: 'minimal' }
       );
 
     submitButton.disabled = false;
