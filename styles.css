@@ -1,0 +1,284 @@
+:root {
+  --bg: #f5efe6;
+  --card: #fffdf9;
+  --primary: #425d7c;
+  --primary-dark: #2f4867;
+  --accent: #c98b52;
+  --success: #2f7d4d;
+  --danger: #9f3d3d;
+  --text: #1f2933;
+  --muted: #62707d;
+  --border: #e4ddd1;
+  --shadow: 0 18px 40px rgba(31, 41, 51, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(180deg, #f9f3eb 0%, var(--bg) 100%);
+  color: var(--text);
+}
+
+.container {
+  max-width: 780px;
+  margin: 48px auto;
+  padding: 0 20px 40px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.hero {
+  padding: 28px 32px;
+  margin-bottom: 26px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 12px;
+  font-size: clamp(2rem, 4vw, 2.7rem);
+}
+
+.subtitle {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.form-card,
+.results-card {
+  padding: 26px 28px;
+}
+
+.field-group {
+  margin-bottom: 22px;
+}
+
+label,
+legend {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+input[type='number'],
+input[type='password'],
+input[type='email'] {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 1rem;
+  background: #fff;
+}
+
+fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f9f6f1;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.option input {
+  accent-color: var(--primary);
+}
+
+button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+button:hover {
+  opacity: 0.95;
+}
+
+button.secondary {
+  background: var(--accent);
+}
+
+.message {
+  min-height: 24px;
+  margin-top: 18px;
+  font-weight: 700;
+}
+
+.message.success {
+  color: var(--success);
+}
+
+.message.error {
+  color: var(--danger);
+}
+
+.links {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.links a {
+  color: var(--primary-dark);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.admin-container {
+  max-width: 900px;
+}
+
+.admin-hero {
+  margin-bottom: 18px;
+}
+
+.hidden {
+  display: none;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.results-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.stat-box {
+  background: #f8f7f4;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 14px;
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.stat-box strong {
+  font-size: 1.8rem;
+}
+
+.stat-box.positive strong {
+  color: var(--success);
+}
+
+.stat-box.negative strong {
+  color: var(--danger);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+th,
+td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  background: #f3eee7;
+  color: var(--primary-dark);
+}
+
+.badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.badge.yes {
+  background: rgba(47, 125, 77, 0.12);
+  color: var(--success);
+}
+
+.badge.no {
+  background: rgba(159, 61, 61, 0.12);
+  color: var(--danger);
+}
+
+@media (max-width: 600px) {
+  .container {
+    margin-top: 24px;
+  }
+
+  .hero,
+  .form-card,
+  .results-card {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .results-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stats {
+    grid-template-columns: 1fr;
+  }
+}

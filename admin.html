@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - Team Österreich Tafel Marchfeld</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container admin-container">
+      <header class="card hero admin-hero">
+        <p class="eyebrow">Team Österreich Tafel Marchfeld – Verwaltung</p>
+        <h1>Anmeldungen der aktuellen Woche</h1>
+      </header>
+
+      <section id="login-section" class="card form-card">
+        <form id="admin-login-form">
+          <div class="field-group">
+            <label for="admin-email">E-Mail</label>
+            <input
+              id="admin-email"
+              name="admin-email"
+              type="email"
+              placeholder="admin@example.com"
+              required
+            />
+          </div>
+          <div class="field-group">
+            <label for="admin-password">Passwort</label>
+            <input
+              id="admin-password"
+              name="admin-password"
+              type="password"
+              placeholder="Passwort eingeben"
+              required
+            />
+          </div>
+          <button type="submit">Anmelden</button>
+        </form>
+        <p id="login-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section id="results-section" class="card results-card hidden">
+        <div class="results-header">
+          <h2 id="week-label">Aktuelle Woche</h2>
+          <div class="results-actions">
+            <button id="reset-week-button" class="secondary" type="button">
+              Woche zurücksetzen
+            </button>
+            <button id="logout-button" class="secondary" type="button">
+              Abmelden
+            </button>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat-box">
+            <span class="stat-label">Gesamt</span>
+            <strong id="total-count">0</strong>
+          </div>
+          <div class="stat-box positive">
+            <span class="stat-label">Ja</span>
+            <strong id="yes-count">0</strong>
+          </div>
+          <div class="stat-box negative">
+            <span class="stat-label">Nein</span>
+            <strong id="no-count">0</strong>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Familiennummer</th>
+                <th>Antwort</th>
+                <th>Gespeichert</th>
+              </tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
