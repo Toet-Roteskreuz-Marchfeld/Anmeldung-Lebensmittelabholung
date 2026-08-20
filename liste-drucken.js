@@ -44,7 +44,7 @@ async function loadPrintList() {
   const printBody = document.getElementById('print-body');
   const periodLabel = document.getElementById('period-label');
 
-  periodLabel.textContent = `Ausgabeliste für Samstag, ${formatPeriodLabel()}`;
+  periodLabel.textContent = `Ausgabeliste für ${formatPeriodLabel()}`;
 
   const { data, error } = await supabaseClient
     .from('print_list')
