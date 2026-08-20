@@ -68,15 +68,36 @@ async function loadPrintList() {
 }
 
 function initDrucken() {
+  const loginSection = document.getElementById('login-section');
+  const printSection = document.getElementById('print-section');
+  const loginForm = document.getElementById('liste-login-form');
+  const loginMessage = document.getElementById('login-message');
   const printButton = document.getElementById('print-button');
   const logoutButton = document.getElementById('liste-logout-button');
 
-  if (!document.getElementById('print-body')) {
+  if (!loginForm || !printSection) {
     return;
   }
 
-  requireSession(loadPrintList, function () {
-    window.location.href = 'liste.html';
+  function showPrint() {
+    loginSection.classList.add('hidden');
+    printSection.classList.remove('hidden');
+    loadPrintList();
+  }
+
+  function showLogin() {
+    printSection.classList.add('hidden');
+    loginSection.classList.remove('hidden');
+    loginForm.reset();
+  }
+
+  requireSession(showPrint);
+
+  wireLoginForm({
+    form: loginForm,
+    message: loginMessage,
+    fixedEmail: LISTE_ACCOUNT_EMAIL,
+    onSuccess: showPrint
   });
 
   if (printButton) {
@@ -85,9 +106,7 @@ function initDrucken() {
     });
   }
 
-  wireLogout(logoutButton, function () {
-    window.location.href = 'liste.html';
-  });
+  wireLogout(logoutButton, showLogin);
 }
 
 window.addEventListener('DOMContentLoaded', function () {

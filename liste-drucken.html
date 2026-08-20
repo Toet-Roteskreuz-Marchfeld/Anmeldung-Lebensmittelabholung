@@ -15,13 +15,28 @@
 
       <nav class="app-nav no-print">
         <a href="index.html">Anmeldung</a>
-        <a href="admin.html">Admin</a>
         <a href="admin-clients.html">Klientenverwaltung</a>
-        <a href="liste.html">Listen-Gruppe</a>
         <a href="liste-drucken.html" class="active">Ausgabeliste</a>
       </nav>
 
-      <section class="card results-card">
+      <section id="login-section" class="card form-card">
+        <form id="liste-login-form">
+          <div class="field-group">
+            <label for="liste-password">Passwort</label>
+            <input
+              id="liste-password"
+              name="liste-password"
+              type="password"
+              placeholder="Passwort eingeben"
+              required
+            />
+          </div>
+          <button type="submit">Anmelden</button>
+        </form>
+        <p id="login-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section id="print-section" class="card results-card hidden">
         <div class="results-header no-print">
           <h2 id="period-label">Ausgabeliste</h2>
           <div class="results-actions">

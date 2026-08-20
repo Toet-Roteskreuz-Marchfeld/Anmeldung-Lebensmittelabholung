@@ -15,13 +15,11 @@ browserübergreifend.
 ## Dateien
 
 - `index.html` – Formular für die Familien
-- `admin.html` – login-geschützter Bereich mit Resultaten
-- `admin-clients.html` / `admin-clients.js` – login-geschützte Klientenverwaltung
-- `liste.html` / `liste.js` – Login für die Listen-Gruppe (gemeinsames Passwort)
-- `liste-drucken.html` / `liste-drucken.js` – druckbare Ausgabeliste für die Listen-Gruppe
+- `admin-clients.html` / `admin-clients.js` – login-geschützte Klientenverwaltung (Admin-Bereich)
+- `liste-drucken.html` / `liste-drucken.js` – login-geschützte, druckbare Ausgabeliste für die Listen-Gruppe
 - `styles.css` – Layout und Design
 - `shared.js` – gemeinsame Logik für alle Seiten (Supabase-Client, Perioden-Berechnung, Login-Helfer)
-- `script.js` – Logik für Speicherung, Anmeldungen und Admin-Sicht
+- `script.js` – Logik für die öffentliche Anmeldung
 - `supabase-config.js` – Zugangsdaten zum eigenen Supabase-Projekt (URL + anon-Key)
 
 ## Supabase-Setup (einmalig)
@@ -216,22 +214,10 @@ browserübergreifend.
 
    revoke all on public.current_attendance_base from public, anon, authenticated;
 
-   -- Admin-Ansicht auf die aktuelle Periode. Die View selbst umgeht RLS
-   -- (Eigentümer-Rechte, wie "submit_attendance"), deshalb wird die
-   -- Admin-Prüfung hier explizit nachgebildet statt über RLS auf
-   -- "attendance" zu laufen.
-   create or replace view public.current_attendance as
-   select family_number, attendance, created_at
-   from public.current_attendance_base
-   where public.is_admin_account();
-
-   grant select on public.current_attendance to authenticated;
-
    -- Ausgabeliste: verknüpft die aktuellen "Ja"-Antworten mit den
    -- Haushaltsdaten aus "clients", liefert aber nie Name/Telefon, weil
-   -- diese Spalten gar nicht erst selektiert werden. Bewusst NICHT über
-   -- current_attendance (das wäre admin-only) - Admin und Listen-Gruppe
-   -- dürfen die Ausgabeliste beide lesen.
+   -- diese Spalten gar nicht erst selektiert werden. Admin und
+   -- Listen-Gruppe dürfen die Ausgabeliste beide lesen.
    create or replace view public.print_list as
    select
      cab.family_number,
@@ -265,20 +251,28 @@ browserübergreifend.
    ```
 
    Anschließend die `submit_attendance`-Funktion aus Schritt 2 sowie
-   `current_period_start()`, `current_attendance_base`, `current_attendance`
-   und `print_list` aus dem Skript oben (erneut) ausführen - alle vier sind
-   als `create or replace` geschrieben und daher gefahrlos wiederholbar.
+   `current_period_start()`, `current_attendance_base` und `print_list` aus
+   dem Skript oben (erneut) ausführen - alle sind als `create or replace`
+   geschrieben und daher gefahrlos wiederholbar.
+
+   Falls dieses Skript schon einmal mit der `current_attendance`-View
+   ausgeführt wurde: die zeigte nur die Rohliste in `admin.html`, das es
+   nicht mehr gibt (siehe unten). Einmalig aufräumen:
+
+   ```sql
+   drop view if exists public.current_attendance;
+   ```
 
 4. Unter **Authentication → Users** einen Admin-Account per "Add user"
-   anlegen (E-Mail + Passwort). Damit meldet man sich später in `admin.html`
-   und `admin-clients.html` an. Zusätzlich einen zweiten Nutzer für die
+   anlegen (E-Mail + Passwort). Damit meldet man sich später in
+   `admin-clients.html` an. Zusätzlich einen zweiten Nutzer für die
    Listen-Gruppe anlegen (E-Mail `liste@toet-marchfeld.local`, ein
    gemeinsames Passwort für alle Tagesleiter) – dieser Nutzer meldet sich in
-   `liste.html` an und wird von `is_list_account()` oben erkannt. Es sind
-   keine öffentlichen Registrierungen aktiviert – nur die von dir angelegten
-   Nutzer können sich einloggen. Ein Passwortwechsel für die Listen-Gruppe
-   erfolgt bewusst nur manuell hier im Dashboard, es gibt dafür keine
-   In-App-Funktion.
+   `liste-drucken.html` an und wird von `is_list_account()` oben erkannt. Es
+   sind keine öffentlichen Registrierungen aktiviert – nur die von dir
+   angelegten Nutzer können sich einloggen. Ein Passwortwechsel für die
+   Listen-Gruppe erfolgt bewusst nur manuell hier im Dashboard, es gibt
+   dafür keine In-App-Funktion.
 5. Unter **Settings → API** die **Project URL** und den **anon public key**
    kopieren und in `supabase-config.js` eintragen:
 
@@ -310,8 +304,8 @@ serverseitig über die SQL-Funktion `current_period_start()`, im Browser über
 `getPeriodSaturday()`/`formatPeriodLabel()` in `shared.js` (nur noch für die
 Anzeige, nicht mehr für Abfragen). Mehrfache An-/Abmeldungen derselben
 Familie innerhalb einer Periode sind kein Problem – die zeitlich neueste
-zählt (`current_attendance`/`print_list` wählen das automatisch aus). Alte
-Perioden werden nicht gelöscht, sondern bleiben unverändert in der
+zählt (`current_attendance_base`/`print_list` wählen das automatisch aus).
+Alte Perioden werden nicht gelöscht, sondern bleiben unverändert in der
 Datenbank erhalten.
 
 ## Datenschutz
