@@ -347,11 +347,6 @@ werden.
    der URL aufruft. Die Standard-JWT-Prüfung bleibt dabei aktiv - das passt,
    weil `pg_cron` die Functions mit dem `service_role`-Key als Bearer-Token
    aufruft, der selbst ein gültiges JWT ist.
-
-   *Alternative über die CLI:* [Supabase CLI](https://supabase.com/docs/guides/cli)
-   installieren, lokal `supabase login` und
-   `supabase link --project-ref <dein-projekt-ref>` ausführen, dann für
-   jede Function `supabase functions deploy <name>` ausführen.
 3. Secrets setzen. Im Dashboard unter **Edge Functions → Secrets** (oder
    **Project Settings → Edge Functions**) folgende Werte eintragen
    (Platzhalter ersetzen):
@@ -366,16 +361,6 @@ werden.
    Service-Role-Key wird bewusst nur hier (serverseitig, nie im
    Frontend-Code) verwendet, weil die Functions alle Klienten lesen müssen,
    was laut RLS sonst nur ein eingeloggter Admin darf.
-
-   *Alternative über die CLI:*
-
-   ```bash
-   supabase secrets set \
-     RESEND_API_KEY=re_dein_api_key \
-     ORGANIZATOR_EMAIL=organisator@example.com \
-     SITE_URL=https://dein-username.github.io/toet-marchfeld \
-     FROM_EMAIL=einladung@deine-verifizierte-domain.at
-   ```
 4. Im **SQL Editor** `pg_cron`/`pg_net` aktivieren, den Service-Role-Key
    sicher im Vault ablegen (nicht direkt im Cron-Job-SQL, das für jeden mit
    DB-Zugriff lesbar wäre) und die beiden wöchentlichen Aufrufe einrichten.
@@ -444,9 +429,8 @@ werden.
      --header 'Authorization: Bearer DEIN-ANON-KEY'
    ```
 
-   *Alternative über die CLI:* `supabase functions invoke send-weekly-invites`
-   bzw. `send-summary`. Ergebnis und Fehler lassen sich in beiden Fällen
-   unter **Edge Functions → [Funktion] → Logs** im Dashboard nachvollziehen.
+   Ergebnis und Fehler lassen sich unter **Edge Functions → [Funktion] →
+   Logs** im Dashboard nachvollziehen.
 
 Die Klientenverwaltung (`admin-clients.html`) hat pro Klient ein Häkchen
 "Erhält wöchentliche Einladungen per E-Mail" (`aktiv`) und ein E-Mail-Feld –
