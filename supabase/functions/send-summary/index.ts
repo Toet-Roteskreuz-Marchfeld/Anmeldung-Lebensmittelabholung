@@ -1,7 +1,9 @@
 // Wird samstags per pg_cron aufgerufen (siehe README, Abschnitt
-// "Automatisierung"). Fasst die aktuelle Ausgabeperiode zusammen - wer
-// zugesagt, abgesagt oder noch nicht geantwortet hat - und schickt das
-// Ergebnis an ORGANIZATOR_EMAIL.
+// "Automatisierung"). Fasst die Einladungen der aktuellen Ausgabeperiode
+// zusammen - wer zugesagt, abgesagt oder noch nicht geantwortet hat - und
+// schickt das Ergebnis an ORGANIZATOR_EMAIL. Liest direkt aus "invites"
+// (dort steht der Status ohnehin schon aktuell, angelegt von
+// send-weekly-invites), nicht aus "attendance".
 //
 // Für die benötigten Secrets siehe den Kommentar in
 // send-weekly-invites/index.ts; diese Funktion nutzt zusätzlich
@@ -26,36 +28,42 @@ function renderSection(title: string, names: string[]) {
 }
 
 Deno.serve(async () => {
-  const [{ data: clients, error: clientsError }, { data: responses, error: responsesError }] =
+  // Dieselbe Grenze wie current_attendance_base/print_list, statt die
+  // Vienna-Wochenlogik hier ein drittes Mal nachzubauen.
+  const { data: periodStart, error: periodStartError } = await supabase.rpc('current_period_start');
+
+  if (periodStartError) {
+    console.error('Fehler beim Laden der aktuellen Periode:', periodStartError);
+    return new Response(JSON.stringify({ error: periodStartError.message }), { status: 500 });
+  }
+
+  const [{ data: invites, error: invitesError }, { data: clients, error: clientsError }] =
     await Promise.all([
-      supabase.from('clients').select('nummer, name').eq('aktiv', true).not('email', 'is', null),
-      // current_attendance_base ist auf public/anon/authenticated revoked,
-      // aber nicht auf service_role - genau dafür ist die View gedacht
-      // (siehe README-Kommentar "Interne Basis").
-      supabase.from('current_attendance_base').select('family_number, attendance')
+      supabase.from('invites').select('family_number, status').gte('created_at', periodStart),
+      supabase.from('clients').select('nummer, name')
     ]);
 
-  if (clientsError || responsesError) {
-    console.error('Fehler beim Laden der Daten:', clientsError ?? responsesError);
-    return new Response(JSON.stringify({ error: (clientsError ?? responsesError)?.message }), {
+  if (invitesError || clientsError) {
+    console.error('Fehler beim Laden der Daten:', invitesError ?? clientsError);
+    return new Response(JSON.stringify({ error: (invitesError ?? clientsError)?.message }), {
       status: 500
     });
   }
 
-  const statusByNummer = new Map((responses ?? []).map((r) => [r.family_number, r.attendance]));
+  const nameByNummer = new Map((clients ?? []).map((c) => [c.nummer, c.name]));
 
   const kommt: string[] = [];
   const kommtNicht: string[] = [];
   const offen: string[] = [];
 
-  for (const client of clients ?? []) {
-    const status = statusByNummer.get(client.nummer);
-    if (status === 'ja') {
-      kommt.push(client.name);
-    } else if (status === 'nein') {
-      kommtNicht.push(client.name);
+  for (const invite of invites ?? []) {
+    const name = nameByNummer.get(invite.family_number) ?? `Familie ${invite.family_number}`;
+    if (invite.status === 'ja') {
+      kommt.push(name);
+    } else if (invite.status === 'nein') {
+      kommtNicht.push(name);
     } else {
-      offen.push(client.name);
+      offen.push(name);
     }
   }
 

@@ -1,12 +1,14 @@
 // Wird freitags per pg_cron aufgerufen (siehe README, Abschnitt
-// "Automatisierung"). Lädt alle aktiven Klienten mit E-Mail-Adresse und
-// schickt jedem einen personalisierten Link mit seinem/ihrem Token - je
-// einen zum direkten Zusagen und einen zum direkten Absagen.
+// "Automatisierung"). Legt für jeden aktiven Klienten mit E-Mail-Adresse
+// eine neue "invites"-Zeile mit einem frischen Token an (status 'offen')
+// und schickt einen personalisierten Link mit genau diesem Token - je
+// einen zum direkten Zusagen und einen zum direkten Absagen. Ein älterer
+// Token aus einer vorigen Einladung wird damit automatisch ungültig, weil
+// submit_attendance_by_token() nur den jeweils neuesten Token pro
+// Familiennummer akzeptiert.
 //
 // Benötigte Secrets (per `supabase secrets set` gesetzt, siehe README):
 //   RESEND_API_KEY - API-Key von resend.com
-//   ORGANIZATOR_EMAIL - wird von dieser Funktion nicht verwendet, aber von
-//     send-summary; beide Secrets werden zusammen gesetzt
 //   SITE_URL - Basis-URL der GitHub-Pages-Seite, z. B.
 //     https://dein-username.github.io/toet-marchfeld
 //   FROM_EMAIL - Absenderadresse; muss eine bei Resend verifizierte Domain
@@ -16,8 +18,9 @@
 // SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY sind in Edge Functions von
 // Supabase automatisch als Umgebungsvariablen gesetzt, dafür ist kein
 // eigenes Secret nötig. Der Service-Role-Key wird hier bewusst verwendet
-// (nicht der anon-Key), weil die Funktion alle Klienten lesen muss - das
-// darf laut RLS auf "clients" sonst nur ein eingeloggter Admin.
+// (nicht der anon-Key), weil die Funktion alle Klienten lesen und
+// Einladungen anlegen muss - das darf laut RLS auf "clients"/"invites"
+// sonst nur ein eingeloggter Admin.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { formatPeriodLabel } from '../_shared/period.ts';
@@ -34,12 +37,10 @@ interface Client {
   nummer: number;
   name: string;
   email: string;
-  token: string;
 }
 
-async function sendInvite(client: Client, dateLabel: string) {
-  const link = (wahl: 'ja' | 'nein') =>
-    `${SITE_URL}/antwort.html?token=${client.token}&wahl=${wahl}`;
+async function sendInvite(client: Client, token: string, dateLabel: string) {
+  const link = (wahl: 'ja' | 'nein') => `${SITE_URL}/antwort.html?token=${token}&wahl=${wahl}`;
 
   const html = `
     <p>Hallo ${client.name},</p>
@@ -70,10 +71,25 @@ async function sendInvite(client: Client, dateLabel: string) {
   }
 }
 
+async function inviteClient(client: Client, dateLabel: string) {
+  const { data: invite, error } = await supabase
+    .from('invites')
+    .insert({ family_number: client.nummer })
+    .select('token')
+    .single();
+
+  if (error || !invite) {
+    console.error(`Konnte keine Einladung für Familie ${client.nummer} anlegen:`, error);
+    return;
+  }
+
+  await sendInvite(client, invite.token, dateLabel);
+}
+
 Deno.serve(async () => {
   const { data: clients, error } = await supabase
     .from('clients')
-    .select('nummer, name, email, token')
+    .select('nummer, name, email')
     .eq('aktiv', true)
     .not('email', 'is', null);
 
@@ -83,7 +99,7 @@ Deno.serve(async () => {
   }
 
   const dateLabel = formatPeriodLabel();
-  await Promise.all((clients ?? []).map((c) => sendInvite(c as Client, dateLabel)));
+  await Promise.all((clients ?? []).map((c) => inviteClient(c as Client, dateLabel)));
 
   return new Response(JSON.stringify({ sent: clients?.length ?? 0 }), {
     headers: { 'Content-Type': 'application/json' }

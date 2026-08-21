@@ -65,9 +65,8 @@ browserübergreifend.
 
    -- Es gibt hier bewusst noch keine INSERT-Möglichkeit für anon: das
    -- öffentliche Speichern läuft über die Funktion
-   -- submit_attendance_by_token() in Schritt 3, die einen gültigen,
-   -- personalisierten Token aus der "clients"-Tabelle voraussetzt - die
-   -- erst dort angelegt wird.
+   -- submit_attendance_by_token() in Schritt 3, die einen gültigen Token
+   -- aus der "invites"-Tabelle voraussetzt - die erst dort angelegt wird.
    ```
 
 3. Im selben **SQL Editor** zusätzlich folgendes Skript ausführen, um die
@@ -76,9 +75,9 @@ browserübergreifend.
 
    ```sql
    -- Vom Admin gepflegte Klientenregistry. Bewusst ohne Foreign Key zur
-   -- "attendance"-Tabelle: die öffentliche Rückmeldung läuft über den
-   -- Token dieser Tabelle (siehe submit_attendance_by_token() unten), nicht
-   -- über einen direkten Verweis auf attendance-Zeilen.
+   -- "attendance"-Tabelle: die öffentliche Rückmeldung läuft über die
+   -- "invites"-Tabelle weiter unten, nicht über einen direkten Verweis auf
+   -- attendance-Zeilen.
    create table clients (
      id bigint generated always as identity primary key,
      nummer integer not null,
@@ -86,7 +85,6 @@ browserübergreifend.
      telefon text,
      email text,
      aktiv boolean not null default true,
-     token uuid not null default gen_random_uuid(),
      ew integer not null default 0,
      ki integer not null default 0,
      gf boolean not null default false,
@@ -107,46 +105,6 @@ browserübergreifend.
    create unique index clients_email_key on clients (email) where email is not null;
 
    alter table clients enable row level security;
-
-   -- Öffentliche Rückmeldung: statt einer frei eingebbaren Familiennummer
-   -- (die auch für eine andere Familie eingegeben werden könnte) validiert
-   -- diese Funktion einen personalisierten, nicht erratbaren Token aus der
-   -- "clients"-Tabelle. Wie schon zuvor läuft sie mit den Rechten ihres
-   -- Eigentümers (security definer) und umgeht damit die RLS auf "clients"
-   -- (Lesen von Nummer/Token) und "attendance" (Insert) - beschränkt auf
-   -- genau diesen einen Vorgang. Es ist immer ein reines INSERT (kein
-   -- Upsert) - mehrfache An-/Abmeldungen sind erlaubt.
-   create or replace function public.submit_attendance_by_token(
-     p_token uuid,
-     p_attendance text
-   )
-   returns void
-   language plpgsql
-   security definer
-   set search_path = public
-   as $$
-   declare
-     v_nummer integer;
-   begin
-     if p_attendance not in ('ja', 'nein') then
-       raise exception 'invalid attendance value: %', p_attendance;
-     end if;
-
-     select nummer into v_nummer
-     from clients
-     where token = p_token and aktiv = true;
-
-     if v_nummer is null then
-       raise exception 'invalid or inactive token';
-     end if;
-
-     insert into attendance (family_number, attendance)
-     values (v_nummer, p_attendance);
-   end;
-   $$;
-
-   revoke all on function public.submit_attendance_by_token(uuid, text) from public;
-   grant execute on function public.submit_attendance_by_token(uuid, text) to anon, authenticated;
 
    -- Admin und Listen-Gruppe sind beide normale Supabase-Auth-Nutzer ohne
    -- eigene Rollen/Claims. Die E-Mail ist das einzige Unterscheidungsmerkmal.
@@ -210,6 +168,87 @@ browserübergreifend.
      on attendance for delete
      to authenticated
      using (public.is_admin_account());
+
+   -- Pro Einladung ein frischer, zufälliger Token statt eines dauerhaften
+   -- Tokens pro Klient: ein geleakter Link aus einer alten E-Mail wird mit
+   -- der nächsten Einladung automatisch ungültig, weil
+   -- submit_attendance_by_token() unten nur den jeweils neuesten Token pro
+   -- Familiennummer akzeptiert. Jede Zeile wird beim Versand der Einladung
+   -- (Edge Function send-weekly-invites) mit status 'offen' angelegt.
+   create table invites (
+     id bigint generated always as identity primary key,
+     family_number integer not null,
+     token uuid not null default gen_random_uuid(),
+     status text not null default 'offen' check (status in ('offen', 'ja', 'nein')),
+     created_at timestamptz not null default now(),
+     updated_at timestamptz
+   );
+
+   create unique index invites_token_key on invites (token);
+   alter table invites enable row level security;
+
+   -- Nur zum Nachschauen/Debuggen durch den Admin - anon und die
+   -- Listen-Gruppe bekommen hier nie Zugriff, das öffentliche Update läuft
+   -- ausschließlich über submit_attendance_by_token().
+   create policy "only admins can view invites"
+     on invites for select
+     to authenticated
+     using (public.is_admin_account());
+
+   -- Öffentliche Rückmeldung: statt einer frei eingebbaren Familiennummer
+   -- (die auch für eine andere Familie eingegeben werden könnte) validiert
+   -- diese Funktion den Token aus der zuletzt für diese Familiennummer
+   -- angelegten "invites"-Zeile. Läuft wie schon zuvor mit den Rechten
+   -- ihres Eigentümers (security definer) und umgeht damit die RLS auf
+   -- "invites" (Update) und "attendance" (Insert) - beschränkt auf genau
+   -- diesen einen Vorgang. Mehrfaches Umentscheiden mit demselben Token ist
+   -- erlaubt (kein Upsert-Zwang), solange keine neuere Einladung existiert.
+   create or replace function public.submit_attendance_by_token(
+     p_token uuid,
+     p_attendance text
+   )
+   returns void
+   language plpgsql
+   security definer
+   set search_path = public
+   as $$
+   declare
+     v_family_number integer;
+     v_latest_token uuid;
+   begin
+     if p_attendance not in ('ja', 'nein') then
+       raise exception 'invalid attendance value: %', p_attendance;
+     end if;
+
+     select family_number into v_family_number
+     from invites
+     where token = p_token;
+
+     if v_family_number is null then
+       raise exception 'invalid token';
+     end if;
+
+     select token into v_latest_token
+     from invites
+     where family_number = v_family_number
+     order by created_at desc
+     limit 1;
+
+     if v_latest_token is distinct from p_token then
+       raise exception 'token superseded by a newer invite';
+     end if;
+
+     update invites
+     set status = p_attendance, updated_at = now()
+     where token = p_token;
+
+     insert into attendance (family_number, attendance)
+     values (v_family_number, p_attendance);
+   end;
+   $$;
+
+   revoke all on function public.submit_attendance_by_token(uuid, text) from public;
+   grant execute on function public.submit_attendance_by_token(uuid, text) to anon, authenticated;
 
    -- Es gibt keine gespeicherte Perioden-Kennung mehr. Die aktuelle
    -- Ausgabeperiode (Samstag 18 Uhr bis zum folgenden Samstag 18 Uhr,
@@ -295,23 +334,33 @@ browserübergreifend.
    drop view if exists public.current_attendance;
    ```
 
-   Falls dieses Skript schon einmal ohne `email`/`aktiv`/`token`-Spalten auf
-   `clients` und mit der alten, familiennummer-basierten
-   `submit_attendance()` ausgeführt wurde: die öffentliche Rückmeldung läuft
-   jetzt über einen personalisierten Link per E-Mail statt über eine frei
+   Falls dieses Skript schon einmal ohne `email`/`aktiv`-Spalten auf
+   `clients`, ohne die `invites`-Tabelle und mit der alten,
+   familiennummer-basierten `submit_attendance()` ausgeführt wurde: die
+   öffentliche Rückmeldung läuft jetzt über einen Token, der bei jeder
+   wöchentlichen Einladung frisch erzeugt wird, statt über eine frei
    eingebbare Familiennummer (siehe Abschnitt "Automatisierung" unten).
    Einmalig nachziehen:
 
    ```sql
    alter table clients add column if not exists email text;
    alter table clients add column if not exists aktiv boolean not null default true;
-   alter table clients add column if not exists token uuid not null default gen_random_uuid();
    create unique index if not exists clients_email_key on clients (email) where email is not null;
 
    drop function if exists public.submit_attendance(integer, text);
    ```
 
-   Anschließend `submit_attendance_by_token()` aus dem Skript oben ausführen.
+   Anschließend die `invites`-Tabelle sowie `submit_attendance_by_token()`
+   aus dem Skript oben ausführen.
+
+   Falls dieses Skript schon einmal mit einer eigenen `token`-Spalte auf
+   `clients` ausgeführt wurde: ein dauerhafter Token pro Klient bliebe bei
+   einem Leak für immer gültig. Er wurde durch die pro Einladung frisch
+   erzeugten Tokens in `invites` ersetzt. Einmalig nachziehen:
+
+   ```sql
+   alter table clients drop column if exists token;
+   ```
 
 4. Unter **Authentication → Users** einen Admin-Account per "Add user"
    anlegen (E-Mail + Passwort). Damit meldet man sich später in
@@ -469,13 +518,18 @@ kein Problem – die zeitlich neueste zählt (`current_attendance_base`/
 gelöscht, sondern bleiben unverändert in der Datenbank erhalten.
 
 Ausgelöst wird eine Periode durch die Edge Function `send-weekly-invites`
-(freitags per `pg_cron`), die jedem aktiven Klienten mit E-Mail-Adresse
-einen personalisierten Link mit seinem/ihrem Token schickt. Ein Klick auf
-"Ja" oder "Nein" ruft `antwort.html` auf, das den Token gegen
-`submit_attendance_by_token()` prüft und die Antwort speichert – ohne
-Login und ohne dass eine Familie die Nummer einer anderen erraten oder
-eingeben könnte. Samstags fasst `send-summary` die aktuelle Periode
-zusammen und schickt sie an `ORGANIZATOR_EMAIL`.
+(freitags per `pg_cron`), die für jeden aktiven Klienten mit E-Mail-Adresse
+eine neue `invites`-Zeile mit einem frischen Token anlegt (status `offen`)
+und einen Link mit genau diesem Token schickt. Ein Klick auf "Ja" oder
+"Nein" ruft `antwort.html` auf, das den Token gegen
+`submit_attendance_by_token()` prüft, den Status in `invites` aktualisiert
+und die Antwort speichert – ohne Login und ohne dass eine Familie die
+Nummer einer anderen erraten oder eingeben könnte. Ein Token aus einer
+älteren, z. B. versehentlich weitergeleiteten E-Mail wird mit der nächsten
+Einladung automatisch ungültig, weil nur der jeweils neueste Token pro
+Familiennummer akzeptiert wird. Samstags fasst `send-summary` die
+`invites`-Zeilen der aktuellen Periode zusammen und schickt sie an
+`ORGANIZATOR_EMAIL`.
 
 ## Datenschutz
 
