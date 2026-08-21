@@ -151,21 +151,6 @@ button.secondary {
   color: var(--danger);
 }
 
-.links {
-  margin-top: 16px;
-  text-align: center;
-}
-
-.links a {
-  color: var(--primary-dark);
-  text-decoration: none;
-  font-weight: 700;
-}
-
-.links a + a {
-  margin-left: 16px;
-}
-
 .app-nav {
   display: flex;
   flex-wrap: wrap;
@@ -219,40 +204,6 @@ button.secondary {
   gap: 10px;
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 1fr));
-  gap: 14px;
-  margin-bottom: 22px;
-}
-
-.stat-box {
-  background: #f8f7f4;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 14px;
-  text-align: center;
-}
-
-.stat-label {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-
-.stat-box strong {
-  font-size: 1.8rem;
-}
-
-.stat-box.positive strong {
-  color: var(--success);
-}
-
-.stat-box.negative strong {
-  color: var(--danger);
-}
-
 .table-wrap {
   overflow-x: auto;
 }
@@ -275,24 +226,6 @@ th {
   color: var(--primary-dark);
 }
 
-.badge {
-  display: inline-block;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 0.8rem;
-}
-
-.badge.yes {
-  background: rgba(47, 125, 77, 0.12);
-  color: var(--success);
-}
-
-.badge.no {
-  background: rgba(159, 61, 61, 0.12);
-  color: var(--danger);
-}
-
 @media (max-width: 600px) {
   .container {
     margin-top: 24px;
@@ -308,10 +241,6 @@ th {
   .results-header {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .stats {
-    grid-template-columns: 1fr;
   }
 }
 
