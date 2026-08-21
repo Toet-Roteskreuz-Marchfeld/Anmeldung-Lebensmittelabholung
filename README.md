@@ -27,7 +27,6 @@ browserübergreifend.
 - `supabase-config.js` – Zugangsdaten zum eigenen Supabase-Projekt (URL + anon-Key)
 - `supabase/functions/send-weekly-invites` – Edge Function: verschickt freitags die personalisierten Einladungs-Mails
 - `supabase/functions/send-summary` – Edge Function: verschickt samstags die Zusammenfassung an den Organisator
-- `supabase/functions/_shared/period.ts` – Perioden-Berechnung für beide Edge Functions (Portierung von `shared.js`)
 
 ## Supabase-Setup (einmalig)
 
@@ -336,10 +335,39 @@ werden.
    Resend verifiziert werden (SPF/DKIM-Einträge im DNS) – ohne verifizierte
    Domain liefert Resend nur an die eigene Account-E-Mail-Adresse aus
    (Absender `onboarding@resend.dev`, nur zum Testen geeignet).
-2. [Supabase CLI](https://supabase.com/docs/guides/cli) installieren, lokal
-   `supabase login` und `supabase link --project-ref <dein-projekt-ref>`
-   ausführen.
-3. Secrets für die Edge Functions setzen (Platzhalter ersetzen):
+2. Beide Edge Functions anlegen. Am einfachsten direkt im Dashboard unter
+   **Edge Functions → "Deploy a new function" → "Via Editor"**: je eine
+   Function mit dem Namen `send-weekly-invites` bzw. `send-summary`
+   anlegen und den Code aus
+   `supabase/functions/send-weekly-invites/index.ts` bzw.
+   `supabase/functions/send-summary/index.ts` hineinkopieren - beide
+   Dateien sind bewusst eigenständig (keine Imports aus einer gemeinsamen
+   Datei), damit das ohne Supabase CLI funktioniert. Die Namen müssen genau
+   passen, weil `pg_cron` in Schritt 4 die Functions über diese Namen in
+   der URL aufruft. Die Standard-JWT-Prüfung bleibt dabei aktiv - das passt,
+   weil `pg_cron` die Functions mit dem `service_role`-Key als Bearer-Token
+   aufruft, der selbst ein gültiges JWT ist.
+
+   *Alternative über die CLI:* [Supabase CLI](https://supabase.com/docs/guides/cli)
+   installieren, lokal `supabase login` und
+   `supabase link --project-ref <dein-projekt-ref>` ausführen, dann für
+   jede Function `supabase functions deploy <name>` ausführen.
+3. Secrets setzen. Im Dashboard unter **Edge Functions → Secrets** (oder
+   **Project Settings → Edge Functions**) folgende Werte eintragen
+   (Platzhalter ersetzen):
+
+   - `RESEND_API_KEY` = `re_dein_api_key`
+   - `ORGANIZATOR_EMAIL` = `organisator@example.com`
+   - `SITE_URL` = `https://dein-username.github.io/toet-marchfeld`
+   - `FROM_EMAIL` = `einladung@deine-verifizierte-domain.at`
+
+   `SUPABASE_URL` und `SUPABASE_SERVICE_ROLE_KEY` setzt Supabase in Edge
+   Functions automatisch – dafür ist kein eigenes Secret nötig. Der
+   Service-Role-Key wird bewusst nur hier (serverseitig, nie im
+   Frontend-Code) verwendet, weil die Functions alle Klienten lesen müssen,
+   was laut RLS sonst nur ein eingeloggter Admin darf.
+
+   *Alternative über die CLI:*
 
    ```bash
    supabase secrets set \
@@ -348,23 +376,7 @@ werden.
      SITE_URL=https://dein-username.github.io/toet-marchfeld \
      FROM_EMAIL=einladung@deine-verifizierte-domain.at
    ```
-
-   `SUPABASE_URL` und `SUPABASE_SERVICE_ROLE_KEY` setzt Supabase in Edge
-   Functions automatisch – dafür ist kein eigenes Secret nötig. Der
-   Service-Role-Key wird bewusst nur hier (serverseitig, nie im
-   Frontend-Code) verwendet, weil die Functions alle Klienten lesen müssen,
-   was laut RLS sonst nur ein eingeloggter Admin darf.
-4. Beide Functions deployen:
-
-   ```bash
-   supabase functions deploy send-weekly-invites
-   supabase functions deploy send-summary
-   ```
-
-   Die Standard-JWT-Prüfung bleibt aktiv – `pg_cron` ruft die Functions in
-   Schritt 5 mit dem `service_role`-Key als Bearer-Token auf, der selbst ein
-   gültiges JWT ist und die Prüfung besteht.
-5. Im **SQL Editor** `pg_cron`/`pg_net` aktivieren, den Service-Role-Key
+4. Im **SQL Editor** `pg_cron`/`pg_net` aktivieren, den Service-Role-Key
    sicher im Vault ablegen (nicht direkt im Cron-Job-SQL, das für jeden mit
    DB-Zugriff lesbar wäre) und die beiden wöchentlichen Aufrufe einrichten.
    Projekt-Ref (Settings → General) und Service-Role-Key (Settings → API)
@@ -421,12 +433,20 @@ werden.
      $$
    );
    ```
-6. Testen, ohne auf den Cron zu warten:
+5. Testen, ohne auf den Cron zu warten - per curl mit dem `anon`-Key als
+   Bearer-Token (aus `supabase-config.js` bzw. Settings → API; Projekt-Ref
+   wie in Schritt 4):
 
    ```bash
-   supabase functions invoke send-weekly-invites
-   supabase functions invoke send-summary
+   curl -i --request POST 'https://DEIN-PROJEKT-REF.functions.supabase.co/send-weekly-invites' \
+     --header 'Authorization: Bearer DEIN-ANON-KEY'
+   curl -i --request POST 'https://DEIN-PROJEKT-REF.functions.supabase.co/send-summary' \
+     --header 'Authorization: Bearer DEIN-ANON-KEY'
    ```
+
+   *Alternative über die CLI:* `supabase functions invoke send-weekly-invites`
+   bzw. `send-summary`. Ergebnis und Fehler lassen sich in beiden Fällen
+   unter **Edge Functions → [Funktion] → Logs** im Dashboard nachvollziehen.
 
 Die Klientenverwaltung (`admin-clients.html`) hat pro Klient ein Häkchen
 "Erhält wöchentliche Einladungen per E-Mail" (`aktiv`) und ein E-Mail-Feld –
@@ -448,10 +468,10 @@ Zeile mit ihrem `created_at`-Zeitstempel. Ob eine Zeile zur **aktuellen
 Ausgabeperiode (Samstag 18 Uhr bis zum folgenden Samstag 18 Uhr, Zeitzone
 Europa/Wien)** gehört, wird bei jeder Abfrage aus `created_at` berechnet –
 serverseitig über die SQL-Funktion `current_period_start()`, im Browser über
-`getPeriodSaturday()`/`formatPeriodLabel()` in `shared.js` und in den Edge
-Functions über die portierte Kopie in
-`supabase/functions/_shared/period.ts` (alle drei nur für Anzeige bzw.
-Mail-Texte, nicht mehr für die eigentliche Filterung von Abfragen).
+`getPeriodSaturday()`/`formatPeriodLabel()` in `shared.js` und in beiden
+Edge Functions über eine portierte, eigenständige Kopie derselben zwei
+Funktionen (nur für Anzeige bzw. Mail-Texte, nicht mehr für die
+eigentliche Filterung von Abfragen).
 Mehrfache An-/Abmeldungen derselben Familie innerhalb einer Periode sind
 kein Problem – die zeitlich neueste zählt (`current_attendance_base`/
 `print_list` wählen das automatisch aus). Alte Perioden werden nicht
