@@ -364,8 +364,22 @@ werden.
 4. Im **SQL Editor** `pg_cron`/`pg_net` aktivieren, den Service-Role-Key
    sicher im Vault ablegen (nicht direkt im Cron-Job-SQL, das für jeden mit
    DB-Zugriff lesbar wäre) und die beiden wöchentlichen Aufrufe einrichten.
-   Projekt-Ref (Settings → General) und Service-Role-Key (Settings → API)
-   einsetzen:
+
+   Den echten Service-Role-Key findest du unter **Project Settings → API**
+   im Abschnitt "Project API keys" - dort gibt es neben dem `anon`/`public`-
+   Key (der schon in `supabase-config.js` steht) einen zweiten,
+   `service_role`/`secret` genannten Key. Genau diesen unten anstelle von
+   `DEIN-SERVICE-ROLE-KEY` einsetzen (samt Anführungszeichen). Die
+   Projekt-Ref (für die URLs weiter unten) steht unter **Project Settings
+   → General**.
+
+   `vault.create_secret(...)` nur **einmal** ausführen - ein zweiter Lauf
+   mit demselben Namen legt einen weiteren Eintrag an, wodurch die
+   `where name = 'service_role_key'`-Abfrage in den Cron-Jobs nicht mehr
+   eindeutig ist und fehlschlägt. Muss der Key später geändert werden,
+   stattdessen `select id from vault.secrets where name = 'service_role_key';`
+   ausführen und mit der gefundenen id
+   `select vault.update_secret('<id>', 'NEUER-KEY');` aufrufen.
 
    ```sql
    create extension if not exists pg_cron;
