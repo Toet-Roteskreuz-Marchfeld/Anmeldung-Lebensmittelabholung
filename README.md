@@ -487,7 +487,9 @@ Nummer einer anderen erraten oder eingeben könnte. Ein Token aus einer
 Einladung automatisch ungültig, weil nur der jeweils neueste Token pro
 Familiennummer akzeptiert wird. Samstags fasst `send-summary` die
 `invites`-Zeilen der aktuellen Periode zusammen und schickt sie an
-`ORGANIZATOR_EMAIL`.
+`ORGANIZATOR_EMAIL`: die Zusagen als Tabelle mit den Haushaltsdaten aus
+`clients` (wie die gedruckte Ausgabeliste, hier zusätzlich mit Namen),
+Absagen und offene Antworten nur als Namensliste.
 
 ## Datenschutz
 
