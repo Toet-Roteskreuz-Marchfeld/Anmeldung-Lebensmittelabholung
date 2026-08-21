@@ -62,7 +62,7 @@
           <input
             id="client-search"
             type="text"
-            placeholder="Nummer, Name oder Telefon"
+            placeholder="Nummer, Name, Telefon oder E-Mail"
           />
         </div>
 
@@ -82,6 +82,22 @@
           <div class="field-group">
             <label for="client-telefon">Telefon</label>
             <input id="client-telefon" type="tel" />
+          </div>
+
+          <div class="field-group">
+            <label for="client-email">E-Mail</label>
+            <input
+              id="client-email"
+              type="email"
+              placeholder="für die wöchentliche Einladung"
+            />
+          </div>
+
+          <div class="field-group">
+            <label class="option">
+              <input type="checkbox" id="client-aktiv" checked />
+              <span>Erhält wöchentliche Einladungen per E-Mail</span>
+            </label>
           </div>
 
           <div class="field-group">
@@ -142,6 +158,8 @@
                 <th>Nr.</th>
                 <th>Name</th>
                 <th>Telefon</th>
+                <th>E-Mail</th>
+                <th>Aktiv</th>
                 <th>EW</th>
                 <th>Ki</th>
                 <th>GF</th>

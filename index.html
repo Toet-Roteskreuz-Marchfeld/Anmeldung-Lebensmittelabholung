@@ -10,10 +10,12 @@
     <main class="container">
       <header class="card hero">
         <p class="eyebrow">Team Österreich Tafel Marchfeld</p>
-        <h1>Am kommenden Samstag dabei?</h1>
+        <h1>Deine Anmeldung kommt per E-Mail</h1>
         <p class="subtitle">
-          Bitte trage nur deine Familiennummer ein und gib an, ob ihr bei der
-          kommenden Tafel-Ausgabe am Samstag Lebensmittel abholt.
+          Jeden Freitagmorgen bekommst du eine persönliche E-Mail mit einem
+          Link, ob du bei der kommenden Tafel-Ausgabe am Samstag
+          Lebensmittel abholst. Ein Klick auf "Ja" oder "Nein" reicht - eine
+          Anmeldung hier auf der Seite ist nicht nötig.
         </p>
       </header>
 
@@ -24,42 +26,12 @@
       </nav>
 
       <section class="card form-card">
-        <form id="attendance-form">
-          <div class="field-group">
-            <label for="family-number">Familiennummer</label>
-            <input
-              id="family-number"
-              name="family-number"
-              type="number"
-              min="1"
-              inputmode="numeric"
-              placeholder="z. B. 12"
-              required
-            />
-          </div>
-
-          <fieldset class="field-group">
-            <legend>Kommt ihr am kommenden Samstag?</legend>
-            <label class="option">
-              <input type="radio" name="attendance" value="ja" required />
-              <span>Ja, wir kommen</span>
-            </label>
-            <label class="option">
-              <input type="radio" name="attendance" value="nein" />
-              <span>Nein, wir kommen nicht</span>
-            </label>
-          </fieldset>
-
-          <button type="submit">Antwort speichern</button>
-        </form>
-
-        <p id="form-message" class="message" aria-live="polite"></p>
+        <p>
+          Noch keine E-Mail bekommen oder deine Adresse hat sich geändert?
+          Melde dich bei deiner Tafel-Ausgabestelle, damit die
+          Klientenverwaltung aktualisiert werden kann.
+        </p>
       </section>
     </main>
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js"></script>
-    <script src="shared.js"></script>
-    <script src="script.js"></script>
   </body>
 </html>

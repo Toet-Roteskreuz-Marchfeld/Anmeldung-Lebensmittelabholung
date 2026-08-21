@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rückmeldung - Team Österreich Tafel Marchfeld</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="card hero">
+        <p class="eyebrow">Team Österreich Tafel Marchfeld</p>
+        <h1>Deine Rückmeldung</h1>
+      </header>
+
+      <nav class="app-nav">
+        <a href="index.html">Anmeldung</a>
+        <a href="admin-clients.html">Klientenverwaltung</a>
+        <a href="liste-drucken.html">Ausgabeliste</a>
+      </nav>
+
+      <section class="card form-card">
+        <p id="antwort-message" class="message" aria-live="polite">
+          Wird gespeichert …
+        </p>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="shared.js"></script>
+    <script src="antwort.js"></script>
+  </body>
+</html>

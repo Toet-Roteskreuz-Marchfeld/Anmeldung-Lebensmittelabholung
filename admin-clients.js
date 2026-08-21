@@ -61,6 +61,8 @@ function initClients() {
     document.getElementById('client-nummer').value = client.nummer;
     document.getElementById('client-name').value = client.name;
     document.getElementById('client-telefon').value = client.telefon ?? '';
+    document.getElementById('client-email').value = client.email ?? '';
+    document.getElementById('client-aktiv').checked = client.aktiv;
     document.getElementById('client-ew').value = client.ew;
     document.getElementById('client-ki').value = client.ki;
     document.getElementById('client-hund').value = client.hund;
@@ -80,6 +82,8 @@ function initClients() {
       nummer: Number(document.getElementById('client-nummer').value),
       name: document.getElementById('client-name').value.trim(),
       telefon: document.getElementById('client-telefon').value.trim() || null,
+      email: document.getElementById('client-email').value.trim() || null,
+      aktiv: document.getElementById('client-aktiv').checked,
       ew: Number(document.getElementById('client-ew').value) || 0,
       ki: Number(document.getElementById('client-ki').value) || 0,
       hund: Number(document.getElementById('client-hund').value) || 0,
@@ -101,7 +105,7 @@ function initClients() {
 
     if (error) {
       console.error('Supabase clients save error:', error);
-      setStatus(formMessage, 'Fehler beim Speichern. Ist die Nummer bereits vergeben?', 'error');
+      setStatus(formMessage, 'Fehler beim Speichern. Sind Nummer oder E-Mail bereits vergeben?', 'error');
       return;
     }
 
@@ -151,13 +155,14 @@ function initClients() {
       (c) =>
         String(c.nummer).includes(q) ||
         (c.name || '').toLowerCase().includes(q) ||
-        (c.telefon || '').toLowerCase().includes(q)
+        (c.telefon || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q)
     );
   }
 
   function renderClients(list) {
     if (list.length === 0) {
-      clientsBody.innerHTML = '<tr><td colspan="12">Keine Klienten gefunden.</td></tr>';
+      clientsBody.innerHTML = '<tr><td colspan="14">Keine Klienten gefunden.</td></tr>';
       return;
     }
 
@@ -168,6 +173,8 @@ function initClients() {
           <td>${c.nummer}</td>
           <td>${c.name}</td>
           <td>${c.telefon ?? ''}</td>
+          <td>${c.email ?? ''}</td>
+          <td>${c.aktiv ? 'Ja' : ''}</td>
           <td>${c.ew}</td>
           <td>${c.ki}</td>
           <td>${c.gf ? 'Ja' : ''}</td>
@@ -193,7 +200,7 @@ function initClients() {
 
     if (error) {
       console.error('Supabase clients load error:', error);
-      clientsBody.innerHTML = '<tr><td colspan="12">Fehler beim Laden der Klienten.</td></tr>';
+      clientsBody.innerHTML = '<tr><td colspan="14">Fehler beim Laden der Klienten.</td></tr>';
       return;
     }
 
