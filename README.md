@@ -302,66 +302,6 @@ browserübergreifend.
    grant select on public.print_list to authenticated;
    ```
 
-   Falls dieses Skript schon einmal mit einer eigenen `klientennummer`-Spalte
-   ausgeführt wurde: die getrennte Klientennummer war ein Fehlgriff, es gibt
-   nur eine Nummer (`nummer`). Einmalig nachziehen:
-
-   ```sql
-   alter table clients drop column if exists klientennummer;
-   ```
-
-   Falls dieses Skript schon einmal mit einer `week_key`-Spalte auf
-   `attendance` ausgeführt wurde: `week_key` wurde entfernt, die aktuelle
-   Periode wird stattdessen bei jeder Abfrage aus `created_at` berechnet
-   (siehe `current_period_start()` oben) und mehrfache An-/Abmeldungen pro
-   Familie sind jetzt erlaubt (die neueste zählt). Einmalig nachziehen:
-
-   ```sql
-   drop view if exists public.print_list;
-   drop function if exists public.submit_attendance(text, integer, text);
-   alter table attendance drop column if exists week_key;
-   ```
-
-   Anschließend `current_period_start()`, `current_attendance_base` und
-   `print_list` aus dem Skript oben (erneut) ausführen - alle sind als
-   `create or replace` geschrieben und daher gefahrlos wiederholbar.
-
-   Falls dieses Skript schon einmal mit der `current_attendance`-View
-   ausgeführt wurde: die zeigte nur die Rohliste in `admin.html`, das es
-   nicht mehr gibt (siehe unten). Einmalig aufräumen:
-
-   ```sql
-   drop view if exists public.current_attendance;
-   ```
-
-   Falls dieses Skript schon einmal ohne `email`/`aktiv`-Spalten auf
-   `clients`, ohne die `invites`-Tabelle und mit der alten,
-   familiennummer-basierten `submit_attendance()` ausgeführt wurde: die
-   öffentliche Rückmeldung läuft jetzt über einen Token, der bei jeder
-   wöchentlichen Einladung frisch erzeugt wird, statt über eine frei
-   eingebbare Familiennummer (siehe Abschnitt "Automatisierung" unten).
-   Einmalig nachziehen:
-
-   ```sql
-   alter table clients add column if not exists email text;
-   alter table clients add column if not exists aktiv boolean not null default true;
-   create unique index if not exists clients_email_key on clients (email) where email is not null;
-
-   drop function if exists public.submit_attendance(integer, text);
-   ```
-
-   Anschließend die `invites`-Tabelle sowie `submit_attendance_by_token()`
-   aus dem Skript oben ausführen.
-
-   Falls dieses Skript schon einmal mit einer eigenen `token`-Spalte auf
-   `clients` ausgeführt wurde: ein dauerhafter Token pro Klient bliebe bei
-   einem Leak für immer gültig. Er wurde durch die pro Einladung frisch
-   erzeugten Tokens in `invites` ersetzt. Einmalig nachziehen:
-
-   ```sql
-   alter table clients drop column if exists token;
-   ```
-
 4. Unter **Authentication → Users** einen Admin-Account per "Add user"
    anlegen (E-Mail + Passwort). Damit meldet man sich später in
    `admin-clients.html` an. Zusätzlich einen zweiten Nutzer für die
