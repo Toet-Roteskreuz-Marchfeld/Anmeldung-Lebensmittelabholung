@@ -352,7 +352,8 @@ werden.
    (Platzhalter ersetzen):
 
    - `RESEND_API_KEY` = `re_dein_api_key`
-   - `ORGANIZATOR_EMAIL` = `organisator@example.com`
+   - `ORGANIZATOR_EMAIL` = `organisator@example.com` (mehrere Empfänger
+     kommagetrennt möglich, z. B. `a@example.com, b@example.com`)
    - `SITE_URL` = `https://www.toet-marchfeld.at`
    - `FROM_EMAIL` = `einladung@deine-verifizierte-domain.at`
 

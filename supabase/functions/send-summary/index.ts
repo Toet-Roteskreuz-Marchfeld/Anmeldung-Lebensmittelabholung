@@ -10,7 +10,8 @@
 //
 // Für die benötigten Secrets siehe den Kommentar in
 // send-weekly-invites/index.ts; diese Funktion nutzt zusätzlich
-// ORGANIZATOR_EMAIL als Empfängeradresse.
+// ORGANIZATOR_EMAIL als Empfängeradresse(n) - kommagetrennt bei mehreren
+// Organisatoren.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -77,7 +78,11 @@ function formatPeriodLabel(date: Date = new Date()) {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
-const ORGANIZATOR_EMAIL = Deno.env.get('ORGANIZATOR_EMAIL')!;
+// Kommagetrennt, falls die Zusammenfassung an mehrere Organisatoren gehen soll.
+const ORGANIZATOR_EMAILS = Deno.env.get('ORGANIZATOR_EMAIL')!
+  .split(',')
+  .map((email) => email.trim())
+  .filter((email) => email.length > 0);
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'onboarding@resend.dev';
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -235,7 +240,7 @@ Deno.serve(async () => {
     },
     body: JSON.stringify({
       from: FROM_EMAIL,
-      to: [ORGANIZATOR_EMAIL],
+      to: ORGANIZATOR_EMAILS,
       subject: `Ausgabeliste ${dateLabel}: ${kommt.length} Zusagen`,
       html
     })
