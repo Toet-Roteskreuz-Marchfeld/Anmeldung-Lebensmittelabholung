@@ -470,9 +470,41 @@ Die Seite läuft unter der eigenen Domain **www.toet-marchfeld.at**, hinterlegt
    `www.toet-marchfeld.at` eintragen (das schreibt/bestätigt die
    `CNAME`-Datei im Repo) und "Enforce HTTPS" aktivieren, sobald das
    Zertifikat ausgestellt wurde.
-3. Die apex-Domain (`toet-marchfeld.at` ohne `www`) optional per
-   `A`/`ALIAS`-Eintrag auf die GitHub-Pages-IPs weiterleiten oder beim
-   Provider auf `www.toet-marchfeld.at` redirecten.
+3. Für die apex-Domain (`toet-marchfeld.at` ohne `www`) beim
+   Domain-Provider einen Eintrag auf die GitHub-Pages-Server anlegen,
+   damit GitHub automatisch auf `www.toet-marchfeld.at` (die primäre
+   Domain aus der `CNAME`-Datei) weiterleitet. Für den Apex-Root ist kein
+   normaler `CNAME`-Record möglich (DNS-Standard) - zwei Varianten:
+
+   - **Bevorzugt, falls vom Provider unterstützt**: ein `ALIAS`- bzw.
+     `ANAME`-Record auf `<username>.github.io` (derselbe Zielhost wie
+     beim `www`-`CNAME` oben). Wird bei jeder Anfrage live aufgelöst,
+     bleibt also auch dann korrekt, wenn GitHub seine Pages-IPs mal
+     ändert - im Gegensatz zu den fest hinterlegten IPs unten.
+   - **Fallback**, falls der Provider kein `ALIAS`/`ANAME` kann: die
+     GitHub-Pages-IPs direkt als `A`/`AAAA`-Records eintragen:
+
+     ```
+     A     185.199.108.153
+     A     185.199.109.153
+     A     185.199.110.153
+     A     185.199.111.153
+     AAAA  2606:50c0:8000::153
+     AAAA  2606:50c0:8001::153
+     AAAA  2606:50c0:8002::153
+     AAAA  2606:50c0:8003::153
+     ```
+
+     Ändert GitHub diese IPs künftig, müssen sie hier manuell
+     nachgezogen werden.
+4. Domain-Verifizierung (optional, verhindert dass jemand anders eure
+   Domain in einem fremden Repo beansprucht): Da das Repo einer
+   Organisation gehört, unter
+   **github.com/organizations/\<org\>/settings/pages** → **Verified
+   domains** → **Add a domain** die apex-Domain (`toet-marchfeld.at`)
+   eintragen. GitHub zeigt dann einen `TXT`-Record
+   (`_github-pages-challenge-<org>`) zum Anlegen beim Domain-Provider an;
+   danach in GitHub auf **Verify** klicken.
 
 ## Wochenlogik
 
