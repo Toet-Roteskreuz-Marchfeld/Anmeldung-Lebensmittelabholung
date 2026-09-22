@@ -61,6 +61,18 @@ function setStatus(element, message, type) {
 }
 
 function wireLoginForm({ form, message, emailInput, fixedEmail, submitButton, onSuccess }) {
+  // Browsers only treat a submit button as the form's "default button" for
+  // Enter-key implicit submission when it's a DOM descendant of the form -
+  // not when it's merely associated via a form="..." attribute, which is
+  // how submitButton is wired here (it lives in the page header). Without
+  // this, Enter in the password field would silently do nothing.
+  form.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' && event.target.tagName === 'INPUT') {
+      event.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
   form.addEventListener('submit', async function (event) {
     event.preventDefault();
 
@@ -130,7 +142,14 @@ function wireHeaderAuthButton() {
     }
   );
 
-  button.addEventListener('click', async function () {
+  button.addEventListener('click', async function (event) {
+    // type="submit" + form="admin-login-form" (see markup) makes this the
+    // form's default button purely so Enter in the password field submits
+    // it too - always prevent the native submit here and decide explicitly
+    // below, otherwise a real click would fire both this handler and a
+    // duplicate native form submission.
+    event.preventDefault();
+
     if (button.textContent === 'Logout') {
       button.disabled = true;
       await supabaseClient.auth.signOut();
