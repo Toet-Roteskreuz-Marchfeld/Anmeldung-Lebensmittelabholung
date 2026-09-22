@@ -9,7 +9,10 @@
   <body>
     <main class="container admin-container">
       <header class="card hero admin-hero">
-        <p class="eyebrow">Team Österreich Tafel Marchfeld – Verwaltung</p>
+        <div class="hero-row">
+          <p class="eyebrow">Team Österreich Tafel Marchfeld – Verwaltung</p>
+          <button id="header-auth-button" type="button">Login</button>
+        </div>
         <h1>Klientenverwaltung</h1>
       </header>
 
@@ -41,7 +44,6 @@
               required
             />
           </div>
-          <button type="submit">Anmelden</button>
         </form>
         <p id="login-message" class="message" aria-live="polite"></p>
       </section>
@@ -51,9 +53,6 @@
           <h2>Klienten</h2>
           <div class="results-actions">
             <button id="new-client-button" type="button">Neuer Klient</button>
-            <button id="clients-logout-button" class="secondary" type="button">
-              Abmelden
-            </button>
           </div>
         </div>
 

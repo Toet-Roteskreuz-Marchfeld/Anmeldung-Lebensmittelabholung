@@ -187,6 +187,13 @@ button.secondary {
   margin-bottom: 18px;
 }
 
+.hero-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
 .hidden {
   display: none;
 }
@@ -238,7 +245,8 @@ th {
     padding-right: 18px;
   }
 
-  .results-header {
+  .results-header,
+  .hero-row {
     flex-direction: column;
     align-items: flex-start;
   }

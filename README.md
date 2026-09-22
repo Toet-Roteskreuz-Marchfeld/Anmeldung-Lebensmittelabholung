@@ -20,7 +20,7 @@ browserübergreifend.
 
 ## Dateien
 
-- `index.html` – Info-Seite: erklärt, dass die Anmeldung per E-Mail-Link läuft
+- `index.html` / `index.js` – Info-Seite: erklärt, dass die Anmeldung per E-Mail-Link läuft; zeigt die Links zur Klientenverwaltung/Ausgabeliste nur für angemeldete Admins
 - `antwort.html` / `antwort.js` – Ziel der personalisierten E-Mail-Links, speichert Ja/Nein anhand des Tokens
 - `admin-clients.html` / `admin-clients.js` – login-geschützte Klientenverwaltung (Admin-Bereich)
 - `liste-drucken.html` / `liste-drucken.js` – druckbare Ausgabeliste; für angemeldete Admins direkt sichtbar, sonst Ziel der personalisierten Listen-Links (Token in der URL)

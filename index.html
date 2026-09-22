@@ -9,7 +9,10 @@
   <body>
     <main class="container">
       <header class="card hero">
-        <p class="eyebrow">Team Österreich Tafel Marchfeld</p>
+        <div class="hero-row">
+          <p class="eyebrow">Team Österreich Tafel Marchfeld</p>
+          <button id="header-auth-button" type="button">Login</button>
+        </div>
         <h1>Deine Anmeldung kommt per E-Mail</h1>
         <p class="subtitle">
           Jeden Freitagmorgen bekommst du eine persönliche E-Mail mit einem
@@ -21,8 +24,8 @@
 
       <nav class="app-nav">
         <a href="index.html" class="active">Anmeldung</a>
-        <a href="admin-clients.html">Klientenverwaltung</a>
-        <a href="liste-drucken.html">Ausgabeliste</a>
+        <a href="admin-clients.html" class="admin-only hidden">Klientenverwaltung</a>
+        <a href="liste-drucken.html" class="admin-only hidden">Ausgabeliste</a>
       </nav>
 
       <section class="card form-card">
@@ -33,5 +36,10 @@
         </p>
       </section>
     </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="shared.js"></script>
+    <script src="index.js"></script>
   </body>
 </html>

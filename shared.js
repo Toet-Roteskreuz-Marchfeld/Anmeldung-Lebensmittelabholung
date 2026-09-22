@@ -60,13 +60,12 @@ function setStatus(element, message, type) {
   }
 }
 
-function wireLoginForm({ form, message, emailInput, fixedEmail, onSuccess }) {
+function wireLoginForm({ form, message, emailInput, fixedEmail, submitButton, onSuccess }) {
   form.addEventListener('submit', async function (event) {
     event.preventDefault();
 
     const email = fixedEmail || emailInput.value.trim();
     const password = form.querySelector('input[type="password"]').value;
-    const submitButton = form.querySelector('button[type="submit"]');
     submitButton.disabled = true;
 
     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -84,23 +83,71 @@ function wireLoginForm({ form, message, emailInput, fixedEmail, onSuccess }) {
   });
 }
 
+// Reagiert nicht nur auf den Session-Stand beim Laden, sondern auch auf
+// spätere Änderungen (z. B. Logout über den Header-Button auf derselben
+// Seite) - onAuthStateChange liefert den aktuellen Stand bereits beim
+// Abonnieren, ein separater erster getSession()-Aufruf ist daher nicht
+// nötig. Nur bei tatsächlichem Wechsel eingeloggt/ausgeloggt auslösen,
+// damit z. B. ein Token-Refresh nicht jedes Mal die Seite neu lädt.
 function requireSession(onAuthenticated, onAnonymous) {
-  supabaseClient.auth.getSession().then(({ data }) => {
-    if (data.session) {
-      onAuthenticated(data.session);
+  let lastHasSession = null;
+
+  supabaseClient.auth.onAuthStateChange(function (_event, session) {
+    const hasSession = Boolean(session);
+    if (hasSession === lastHasSession) {
+      return;
+    }
+    lastHasSession = hasSession;
+
+    if (hasSession) {
+      onAuthenticated(session);
     } else if (onAnonymous) {
       onAnonymous();
     }
   });
 }
 
-function wireLogout(button, onLoggedOut) {
+// Auf allen drei Seiten vorhanden (siehe shared.js-Einbindung) und zeigt
+// je nach Session-Stand "Login"/"Logout". Ohne Login-Formular auf der
+// aktuellen Seite (index.html, liste-drucken.html) führt "Login" auf
+// admin-clients.html, wo das Formular liegt; ist eines vorhanden (auf
+// admin-clients.html selbst), löst der Klick stattdessen dessen Absenden
+// aus (requestSubmit() feuert das normale "submit"-Event, das
+// wireLoginForm oben abonniert hat).
+function wireHeaderAuthButton() {
+  const button = document.getElementById('header-auth-button');
+
   if (!button) {
     return;
   }
 
+  requireSession(
+    function () {
+      button.textContent = 'Logout';
+    },
+    function () {
+      button.textContent = 'Login';
+    }
+  );
+
   button.addEventListener('click', async function () {
-    await supabaseClient.auth.signOut();
-    onLoggedOut();
+    if (button.textContent === 'Logout') {
+      button.disabled = true;
+      await supabaseClient.auth.signOut();
+      button.disabled = false;
+      return;
+    }
+
+    const loginForm = document.getElementById('admin-login-form');
+    if (loginForm) {
+      loginForm.requestSubmit();
+      return;
+    }
+
+    window.location.href = 'admin-clients.html';
   });
 }
+
+window.addEventListener('DOMContentLoaded', function () {
+  wireHeaderAuthButton();
+});

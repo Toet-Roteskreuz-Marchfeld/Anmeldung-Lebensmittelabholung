@@ -3,7 +3,6 @@ function initClients() {
   const clientsSection = document.getElementById('clients-section');
   const loginForm = document.getElementById('admin-login-form');
   const loginMessage = document.getElementById('login-message');
-  const logoutButton = document.getElementById('clients-logout-button');
   const searchInput = document.getElementById('client-search');
   const newClientButton = document.getElementById('new-client-button');
   const clientForm = document.getElementById('client-form');
@@ -29,16 +28,15 @@ function initClients() {
     loginForm.reset();
   }
 
-  requireSession(showClients);
+  requireSession(showClients, showLogin);
 
   wireLoginForm({
     form: loginForm,
     message: loginMessage,
     emailInput: document.getElementById('admin-email'),
+    submitButton: document.getElementById('header-auth-button'),
     onSuccess: showClients
   });
-
-  wireLogout(logoutButton, showLogin);
 
   function resetForm() {
     clientForm.reset();
