@@ -19,21 +19,8 @@
         <a href="liste-drucken.html" class="active">Ausgabeliste</a>
       </nav>
 
-      <section id="login-section" class="card form-card">
-        <form id="liste-login-form">
-          <div class="field-group">
-            <label for="liste-password">Passwort</label>
-            <input
-              id="liste-password"
-              name="liste-password"
-              type="password"
-              placeholder="Passwort eingeben"
-              required
-            />
-          </div>
-          <button type="submit">Anmelden</button>
-        </form>
-        <p id="login-message" class="message" aria-live="polite"></p>
+      <section id="error-section" class="card form-card hidden">
+        <p id="error-message" class="message error" aria-live="polite"></p>
       </section>
 
       <section id="print-section" class="card results-card hidden">
@@ -41,9 +28,6 @@
           <h2 id="period-label">Ausgabeliste</h2>
           <div class="results-actions">
             <button id="print-button" type="button">Drucken</button>
-            <button id="liste-logout-button" class="secondary" type="button">
-              Abmelden
-            </button>
           </div>
         </div>
 

@@ -1,7 +1,5 @@
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const LISTE_ACCOUNT_EMAIL = 'liste@toet-marchfeld.local';
-
 function getViennaParts(date = new Date()) {
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Europe/Vienna',

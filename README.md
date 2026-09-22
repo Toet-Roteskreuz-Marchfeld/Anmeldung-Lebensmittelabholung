@@ -11,7 +11,8 @@ browserübergreifend.
   nicht nötig
 - Admin-Bereich mit echtem Login (Supabase Auth), inkl. Klientenverwaltung
   (Name, Telefon, E-Mail, Haushaltsdaten)
-- Listen-Gruppe mit gemeinsamem Passwort für eine druckbare Ausgabeliste
+- Listen-Betrachter bekommen samstags einen personalisierten, 14 Tage
+  gültigen Link auf die druckbare Ausgabeliste (kein Login/Passwort nötig)
 - Ergebnisse werden automatisch nach der aktuellen Ausgabeperiode gefiltert
 - Am Samstagvormittag bekommt der Organisator automatisch eine
   Zusammenfassung per E-Mail (Zusagen/Absagen/offene Antworten)
@@ -21,7 +22,7 @@ browserübergreifend.
 - `index.html` – Info-Seite: erklärt, dass die Anmeldung per E-Mail-Link läuft
 - `antwort.html` / `antwort.js` – Ziel der personalisierten E-Mail-Links, speichert Ja/Nein anhand des Tokens
 - `admin-clients.html` / `admin-clients.js` – login-geschützte Klientenverwaltung (Admin-Bereich)
-- `liste-drucken.html` / `liste-drucken.js` – login-geschützte, druckbare Ausgabeliste für die Listen-Gruppe
+- `liste-drucken.html` / `liste-drucken.js` – Ziel der personalisierten Listen-Links, zeigt die druckbare Ausgabeliste anhand des Tokens
 - `styles.css` – Layout und Design
 - `shared.js` – gemeinsame Logik für alle Seiten (Supabase-Client, Perioden-Berechnung, Login-Helfer)
 - `supabase-config.js` – Zugangsdaten zum eigenen Supabase-Projekt (URL + anon-Key)
@@ -69,8 +70,8 @@ browserübergreifend.
    ```
 
 3. Im selben **SQL Editor** zusätzlich folgendes Skript ausführen, um die
-   Klientenverwaltung, die Rollentrennung zwischen Admin und Listen-Gruppe
-   sowie die Ausgabeliste anzulegen:
+   Klientenverwaltung, die Einladungs-Tokens sowie die (tokenbasierte)
+   Ausgabeliste anzulegen:
 
    ```sql
    -- Vom Admin gepflegte Klientenregistry. Bewusst ohne Foreign Key zur
@@ -105,31 +106,23 @@ browserübergreifend.
 
    alter table clients enable row level security;
 
-   -- Admin und Listen-Gruppe sind beide normale Supabase-Auth-Nutzer ohne
-   -- eigene Rollen/Claims. Die E-Mail ist das einzige Unterscheidungsmerkmal.
-   -- "Admin" = jeder eingeloggte Nutzer außer dem Listen-Account, damit ein
-   -- zweiter echter Admin-Account später ohne SQL-Änderung funktioniert.
-   create or replace function public.is_list_account()
-   returns boolean
-   language sql stable
-   set search_path = public, auth
-   as $$
-     select coalesce(auth.email(), '') = 'liste@toet-marchfeld.local';
-   $$;
-
+   -- Admin ist einfach jeder eingeloggte Supabase-Auth-Nutzer (kein
+   -- Listen-Account mehr, der Zugriff auf die Ausgabeliste läuft
+   -- inzwischen über get_print_list_by_token() weiter unten statt über
+   -- ein eigenes Konto). Eigene Funktion statt "to authenticated" direkt
+   -- in den Policies, damit ein späterer Rollenzuschnitt an einer Stelle
+   -- geändert werden kann.
    create or replace function public.is_admin_account()
    returns boolean
    language sql stable
    set search_path = public, auth
    as $$
-     select auth.role() = 'authenticated' and not public.is_list_account();
+     select auth.role() = 'authenticated';
    $$;
 
-   grant execute on function public.is_list_account() to authenticated;
    grant execute on function public.is_admin_account() to authenticated;
 
-   -- Nur Admins dürfen Klienten verwalten. Weder anon noch die
-   -- Listen-Gruppe bekommen hier jemals Zugriff.
+   -- Nur Admins dürfen Klienten verwalten.
    create policy "only admins can view clients"
      on clients for select
      to authenticated
@@ -153,8 +146,8 @@ browserübergreifend.
 
    -- Die bestehenden Policies auf "attendance" erlaubten bisher jedem
    -- eingeloggten Nutzer Lese-/Löschzugriff ("to authenticated using
-   -- (true)"). Das würde dem neuen Listen-Account vollen Zugriff auf die
-   -- Rohdaten geben - deshalb auf is_admin_account() verschärfen.
+   -- (true)") - auf is_admin_account() verschärfen, damit das nur für
+   -- Admins gilt.
    drop policy "only admins can view responses" on attendance;
    drop policy "only admins can delete responses" on attendance;
 
@@ -186,9 +179,9 @@ browserübergreifend.
    create unique index invites_token_key on invites (token);
    alter table invites enable row level security;
 
-   -- Nur zum Nachschauen/Debuggen durch den Admin - anon und die
-   -- Listen-Gruppe bekommen hier nie Zugriff, das öffentliche Update läuft
-   -- ausschließlich über submit_attendance_by_token().
+   -- Nur zum Nachschauen/Debuggen durch den Admin - anon bekommt hier nie
+   -- Zugriff, das öffentliche Update läuft ausschließlich über
+   -- submit_attendance_by_token().
    create policy "only admins can view invites"
      on invites for select
      to authenticated
@@ -287,8 +280,10 @@ browserübergreifend.
 
    -- Ausgabeliste: verknüpft die aktuellen "Ja"-Antworten mit den
    -- Haushaltsdaten aus "clients", liefert aber nie Name/Telefon, weil
-   -- diese Spalten gar nicht erst selektiert werden. Admin und
-   -- Listen-Gruppe dürfen die Ausgabeliste beide lesen.
+   -- diese Spalten gar nicht erst selektiert werden. Direkter Zugriff nur
+   -- für Admins (z. B. zum Nachschauen im Adminbereich); Listen-Betrachter
+   -- lesen dieselben Daten stattdessen ausschließlich über
+   -- get_print_list_by_token() weiter unten.
    create or replace view public.print_list as
    select
      cab.family_number,
@@ -299,18 +294,78 @@ browserübergreifend.
 
    revoke all on public.print_list from public, anon;
    grant select on public.print_list to authenticated;
+
+   -- E-Mail-Adressen der Organisatoren (kind = 'organizer') und
+   -- Listen-Betrachter (kind = 'list_viewer'). Bewusst eine Tabelle statt
+   -- Secrets: Supabase-Secrets sind write-only (nicht mehr einsehbar,
+   -- sobald gesetzt) - ungeeignet für eine Liste, die sich mal ändert.
+   -- Verwaltung erfolgt direkt hier im SQL Editor per insert/delete.
+   create table mail_recipients (
+     id bigint generated always as identity primary key,
+     email text not null,
+     kind text not null check (kind in ('organizer', 'list_viewer')),
+     created_at timestamptz not null default now()
+   );
+
+   create unique index mail_recipients_email_kind_key on mail_recipients (email, kind);
+   alter table mail_recipients enable row level security;
+   -- Kein Zugriff für anon/authenticated - nur der service_role-Key aus
+   -- send-summary liest das, Verwaltung läuft über den SQL Editor.
+
+   -- Pro Listen-Betrachter ein eigener, 14 Tage gültiger Token statt des
+   -- früheren gemeinsamen Listen-Kontos. Wird jeden Samstag frisch von
+   -- send-summary angelegt und personalisiert per Mail verschickt - weil
+   -- jede Person einen eigenen Token hat, lässt sich ein veröffentlichter
+   -- Token im Nachhinein zuordnen (select email from list_view_tokens
+   -- where token = '...'). Keine eigene Widerrufs-Logik: die kurze
+   -- Gültigkeit reicht als Risikobegrenzung.
+   create table list_view_tokens (
+     id bigint generated always as identity primary key,
+     token uuid not null default gen_random_uuid(),
+     email text not null,
+     created_at timestamptz not null default now(),
+     expires_at timestamptz not null default now() + interval '14 days'
+   );
+
+   create unique index list_view_tokens_token_key on list_view_tokens (token);
+   alter table list_view_tokens enable row level security;
+   -- Kein Zugriff für anon/authenticated direkt - nur über die Funktion
+   -- unten bzw. den service_role-Key aus send-summary.
+
+   -- Öffentlicher, tokenbasierter Lesezugriff auf die Ausgabeliste ohne
+   -- Login - security definer umgeht damit gezielt die RLS auf
+   -- "print_list" (die nur Admins erlaubt), beschränkt auf einen gültigen,
+   -- nicht abgelaufenen Token.
+   create or replace function public.get_print_list_by_token(p_token uuid)
+   returns setof public.print_list
+   language plpgsql
+   security definer
+   set search_path = public
+   as $$
+   begin
+     if not exists (
+       select 1 from list_view_tokens
+       where token = p_token and expires_at > now()
+     ) then
+       raise exception 'invalid or expired token';
+     end if;
+
+     return query select * from public.print_list;
+   end;
+   $$;
+
+   revoke all on function public.get_print_list_by_token(uuid) from public;
+   grant execute on function public.get_print_list_by_token(uuid) to anon;
    ```
 
 4. Unter **Authentication → Users** einen Admin-Account per "Add user"
    anlegen (E-Mail + Passwort). Damit meldet man sich später in
-   `admin-clients.html` an. Zusätzlich einen zweiten Nutzer für die
-   Listen-Gruppe anlegen (E-Mail `liste@toet-marchfeld.local`, ein
-   gemeinsames Passwort für alle Tagesleiter) – dieser Nutzer meldet sich in
-   `liste-drucken.html` an und wird von `is_list_account()` oben erkannt. Es
-   sind keine öffentlichen Registrierungen aktiviert – nur die von dir
-   angelegten Nutzer können sich einloggen. Ein Passwortwechsel für die
-   Listen-Gruppe erfolgt bewusst nur manuell hier im Dashboard, es gibt
-   dafür keine In-App-Funktion.
+   `admin-clients.html` an. Es sind keine öffentlichen Registrierungen
+   aktiviert – nur die von dir angelegten Nutzer können sich einloggen.
+   Für weitere Admins einfach weitere Nutzer anlegen, siehe
+   `is_admin_account()` oben. Ein eigenes Konto für Listen-Betrachter ist
+   nicht mehr nötig – die bekommen ihren Zugriff über personalisierte
+   Mail-Links, siehe Abschnitt "Automatisierung" unten.
 5. Unter **Settings → API** die **Project URL** und den **anon public key**
    kopieren und in `supabase-config.js` eintragen:
 
@@ -352,9 +407,9 @@ werden.
    (Platzhalter ersetzen):
 
    - `RESEND_API_KEY` = `re_dein_api_key`
-   - `ORGANIZATOR_EMAIL` = `organisator@example.com` (mehrere Empfänger
-     kommagetrennt möglich, z. B. `a@example.com, b@example.com`)
-   - `SITE_URL` = `https://www.toet-marchfeld.at`
+   - `SITE_URL` = `https://www.toet-marchfeld.at` (für beide Functions -
+     `send-summary` baut damit die Listen-Links, `send-weekly-invites` die
+     Zu-/Absage-Links)
    - `FROM_EMAIL` = `einladung@deine-verifizierte-domain.at`
 
    `SUPABASE_URL` und `SUPABASE_SERVICE_ROLE_KEY` setzt Supabase in Edge
@@ -362,6 +417,26 @@ werden.
    Service-Role-Key wird bewusst nur hier (serverseitig, nie im
    Frontend-Code) verwendet, weil die Functions alle Klienten lesen müssen,
    was laut RLS sonst nur ein eingeloggter Admin darf.
+
+   Organisatoren und Listen-Betrachter stehen **nicht** in Secrets, sondern
+   in der Tabelle `mail_recipients` (siehe SQL-Setup oben) - Secrets sind
+   in Supabase write-only, also ungeeignet für eine Liste, die sich mal
+   ändert. Im **SQL Editor** z. B.:
+
+   ```sql
+   insert into mail_recipients (email, kind) values
+     ('organisator@example.com', 'organizer'),
+     ('tagesleiter1@example.com', 'list_viewer'),
+     ('tagesleiter2@example.com', 'list_viewer');
+   ```
+
+   Zum Entfernen einer Adresse reicht ein `delete from mail_recipients
+   where email = '...';`. `send-summary` verschickt an jeden Eintrag eine
+   eigene, einzelne Mail (nie mehrere Adressen im selben `to`-Feld) -
+   Organisatoren bekommen die volle Zusammenfassung mit Namen,
+   Listen-Betrachter einen personalisierten, 14 Tage gültigen Link auf die
+   anonymisierte Ausgabeliste (`liste-drucken.html?token=...`, siehe
+   `get_print_list_by_token()` oben).
 4. Im **SQL Editor** `pg_cron`/`pg_net` aktivieren, den Service-Role-Key
    sicher im Vault ablegen (nicht direkt im Cron-Job-SQL, das für jeden mit
    DB-Zugriff lesbar wäre) und die beiden wöchentlichen Aufrufe einrichten.
@@ -534,10 +609,15 @@ Nummer einer anderen erraten oder eingeben könnte. Ein Token aus einer
 älteren, z. B. versehentlich weitergeleiteten E-Mail wird mit der nächsten
 Einladung automatisch ungültig, weil nur der jeweils neueste Token pro
 Familiennummer akzeptiert wird. Samstags fasst `send-summary` die
-`invites`-Zeilen der aktuellen Periode zusammen und schickt sie an
-`ORGANIZATOR_EMAIL`: die Zusagen als Tabelle mit den Haushaltsdaten aus
-`clients` (wie die gedruckte Ausgabeliste, hier zusätzlich mit Namen),
-Absagen und offene Antworten nur als Namensliste.
+`invites`-Zeilen der aktuellen Periode zusammen und schickt sie einzeln an
+jeden Organisator aus `mail_recipients` (`kind = 'organizer'`): die
+Zusagen als Tabelle mit den Haushaltsdaten aus `clients` (wie die gedruckte
+Ausgabeliste, hier zusätzlich mit Namen), Absagen und offene Antworten nur
+als Namensliste. Zeitgleich verschickt dieselbe Function an jeden
+Listen-Betrachter (`kind = 'list_viewer'`) einen eigenen, frischen,
+14 Tage gültigen Link auf `liste-drucken.html`, der über
+`get_print_list_by_token()` immer den aktuellen Periodenstand zeigt - ganz
+ohne Login.
 
 ## Datenschutz
 
@@ -548,8 +628,14 @@ Absagen und offene Antworten nur als Namensliste.
 - Name, Telefonnummer und E-Mail-Adresse werden ausschließlich admin-seitig
   in der Klientenverwaltung (`clients`-Tabelle) für die Haushaltsverwaltung
   und den Mailversand gespeichert. Sie werden nie öffentlich angezeigt und
-  erscheinen auch nicht auf der Ausgabeliste der Listen-Gruppe – nur der
-  Admin kann sie einsehen.
+  erscheinen auch nicht auf der Ausgabeliste für Listen-Betrachter – nur
+  der Admin kann sie einsehen.
+- Listen-Betrachter greifen über einen personalisierten, 14 Tage gültigen
+  Token zu statt über ein gemeinsames Konto/Passwort wie früher. Jeder
+  Token ist einer einzelnen E-Mail-Adresse zugeordnet (`list_view_tokens`),
+  damit sich ein versehentlich weitergegebener Link im Nachhinein einer
+  Person zuordnen lässt. Es gibt bewusst keine Widerrufs-Möglichkeit vor
+  Ablauf - die kurze Gültigkeit begrenzt das Risiko stattdessen zeitlich.
 - Der Mailversand läuft über Resend, einen Anbieter außerhalb der EU. Die
   versendeten Inhalte sind auf Name, Datum und den Ja-/Nein-Link begrenzt;
   wer für den Mailversand ebenfalls eine EU-only-Verarbeitung braucht,

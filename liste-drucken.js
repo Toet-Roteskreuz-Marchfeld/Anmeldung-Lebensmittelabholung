@@ -40,21 +40,18 @@ function renderSumRow(sums) {
     </tr>`;
 }
 
-async function loadPrintList() {
+async function loadPrintList(token) {
   const printBody = document.getElementById('print-body');
   const periodLabel = document.getElementById('period-label');
 
   periodLabel.textContent = `Ausgabeliste für ${formatPeriodLabel()}`;
 
-  const { data, error } = await supabaseClient
-    .from('print_list')
-    .select('family_number, ew, ki, gf, ep, musl, hund, katze, sonstiges')
-    .order('family_number', { ascending: true });
+  const { data, error } = await supabaseClient.rpc('get_print_list_by_token', {
+    p_token: token
+  });
 
   if (error) {
-    console.error('Supabase print_list error:', error);
-    printBody.innerHTML = '<tr><td colspan="8">Fehler beim Laden der Ausgabeliste.</td></tr>';
-    return;
+    throw error;
   }
 
   const entries = data || [];
@@ -68,45 +65,42 @@ async function loadPrintList() {
 }
 
 function initDrucken() {
-  const loginSection = document.getElementById('login-section');
+  const errorSection = document.getElementById('error-section');
+  const errorMessage = document.getElementById('error-message');
   const printSection = document.getElementById('print-section');
-  const loginForm = document.getElementById('liste-login-form');
-  const loginMessage = document.getElementById('login-message');
   const printButton = document.getElementById('print-button');
-  const logoutButton = document.getElementById('liste-logout-button');
 
-  if (!loginForm || !printSection) {
+  if (!printSection || !errorSection) {
     return;
   }
 
-  function showPrint() {
-    loginSection.classList.add('hidden');
-    printSection.classList.remove('hidden');
-    loadPrintList();
-  }
-
-  function showLogin() {
+  function showError(message) {
     printSection.classList.add('hidden');
-    loginSection.classList.remove('hidden');
-    loginForm.reset();
+    errorSection.classList.remove('hidden');
+    setStatus(errorMessage, message, 'error');
   }
 
-  requireSession(showPrint);
+  const token = new URLSearchParams(window.location.search).get('token');
 
-  wireLoginForm({
-    form: loginForm,
-    message: loginMessage,
-    fixedEmail: LISTE_ACCOUNT_EMAIL,
-    onSuccess: showPrint
-  });
+  if (!token) {
+    showError('Ungültiger Link. Bitte benutze den Link aus der E-Mail.');
+    return;
+  }
+
+  loadPrintList(token)
+    .then(function () {
+      printSection.classList.remove('hidden');
+    })
+    .catch(function (error) {
+      console.error('Supabase get_print_list_by_token error:', error);
+      showError('Dieser Link ist ungültig oder abgelaufen. Bitte warte auf die nächste E-Mail oder kontaktiere die Tafel.');
+    });
 
   if (printButton) {
     printButton.addEventListener('click', function () {
       window.print();
     });
   }
-
-  wireLogout(logoutButton, showLogin);
 }
 
 window.addEventListener('DOMContentLoaded', function () {
