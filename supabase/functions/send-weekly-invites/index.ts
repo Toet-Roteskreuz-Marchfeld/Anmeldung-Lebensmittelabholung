@@ -9,8 +9,8 @@
 //
 // Benötigte Secrets (per `supabase secrets set` gesetzt, siehe README):
 //   RESEND_API_KEY - API-Key von resend.com
-//   SITE_URL - Basis-URL der GitHub-Pages-Seite, z. B.
-//     https://dein-username.github.io/toet-marchfeld
+//   SITE_URL - Basis-URL der Seite:
+//     https://www.toet-marchfeld.at
 //   FROM_EMAIL - Absenderadresse; muss eine bei Resend verifizierte Domain
 //     sein, sonst kann testweise "onboarding@resend.dev" verwendet werden
 //     (liefert dann aber nur an die eigene Resend-Account-E-Mail aus)

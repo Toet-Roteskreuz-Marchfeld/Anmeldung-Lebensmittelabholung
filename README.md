@@ -353,7 +353,7 @@ werden.
 
    - `RESEND_API_KEY` = `re_dein_api_key`
    - `ORGANIZATOR_EMAIL` = `organisator@example.com`
-   - `SITE_URL` = `https://dein-username.github.io/toet-marchfeld`
+   - `SITE_URL` = `https://www.toet-marchfeld.at`
    - `FROM_EMAIL` = `einladung@deine-verifizierte-domain.at`
 
    `SUPABASE_URL` und `SUPABASE_SERVICE_ROLE_KEY` setzt Supabase in Edge
@@ -457,6 +457,21 @@ wöchentliche Einladung.
 2. Aktiviere in GitHub unter Settings → Pages die Option "Deploy from a branch".
 3. Wähle den Hauptbranch und den Ordner `/`.
 4. Die Seite ist dann unter deiner GitHub-Page-URL verfügbar.
+
+### Eigene Domain (www.toet-marchfeld.at)
+
+Die Seite läuft unter der eigenen Domain **www.toet-marchfeld.at**, hinterlegt
+über die `CNAME`-Datei im Repository-Root.
+
+1. Beim Domain-Provider einen `CNAME`-Eintrag für `www` anlegen, der auf
+   `<username>.github.io` zeigt (GitHub-Pages-Zielhost des Repos).
+2. In GitHub unter Settings → Pages bei **Custom domain**
+   `www.toet-marchfeld.at` eintragen (das schreibt/bestätigt die
+   `CNAME`-Datei im Repo) und "Enforce HTTPS" aktivieren, sobald das
+   Zertifikat ausgestellt wurde.
+3. Die apex-Domain (`toet-marchfeld.at` ohne `www`) optional per
+   `A`/`ALIAS`-Eintrag auf die GitHub-Pages-IPs weiterleiten oder beim
+   Provider auf `www.toet-marchfeld.at` redirecten.
 
 ## Wochenlogik
 
