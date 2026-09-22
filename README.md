@@ -12,7 +12,8 @@ browserübergreifend.
 - Admin-Bereich mit echtem Login (Supabase Auth), inkl. Klientenverwaltung
   (Name, Telefon, E-Mail, Haushaltsdaten)
 - Listen-Betrachter bekommen samstags einen personalisierten, 14 Tage
-  gültigen Link auf die druckbare Ausgabeliste (kein Login/Passwort nötig)
+  gültigen Link auf die druckbare Ausgabeliste (kein Login/Passwort nötig);
+  angemeldete Admins sehen dieselbe Liste direkt, ganz ohne Link/Token
 - Ergebnisse werden automatisch nach der aktuellen Ausgabeperiode gefiltert
 - Am Samstagvormittag bekommt der Organisator automatisch eine
   Zusammenfassung per E-Mail (Zusagen/Absagen/offene Antworten)
@@ -22,7 +23,7 @@ browserübergreifend.
 - `index.html` – Info-Seite: erklärt, dass die Anmeldung per E-Mail-Link läuft
 - `antwort.html` / `antwort.js` – Ziel der personalisierten E-Mail-Links, speichert Ja/Nein anhand des Tokens
 - `admin-clients.html` / `admin-clients.js` – login-geschützte Klientenverwaltung (Admin-Bereich)
-- `liste-drucken.html` / `liste-drucken.js` – Ziel der personalisierten Listen-Links, zeigt die druckbare Ausgabeliste anhand des Tokens
+- `liste-drucken.html` / `liste-drucken.js` – druckbare Ausgabeliste; für angemeldete Admins direkt sichtbar, sonst Ziel der personalisierten Listen-Links (Token in der URL)
 - `styles.css` – Layout und Design
 - `shared.js` – gemeinsame Logik für alle Seiten (Supabase-Client, Perioden-Berechnung, Login-Helfer)
 - `supabase-config.js` – Zugangsdaten zum eigenen Supabase-Projekt (URL + anon-Key)

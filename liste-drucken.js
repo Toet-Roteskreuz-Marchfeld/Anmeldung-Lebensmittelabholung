@@ -40,21 +40,8 @@ function renderSumRow(sums) {
     </tr>`;
 }
 
-async function loadPrintList(token) {
+function renderEntries(entries) {
   const printBody = document.getElementById('print-body');
-  const periodLabel = document.getElementById('period-label');
-
-  periodLabel.textContent = `Ausgabeliste für ${formatPeriodLabel()}`;
-
-  const { data, error } = await supabaseClient.rpc('get_print_list_by_token', {
-    p_token: token
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  const entries = data || [];
 
   if (entries.length === 0) {
     printBody.innerHTML = '<tr><td colspan="8">Noch keine Anmeldungen für diese Woche.</td></tr>';
@@ -64,11 +51,40 @@ async function loadPrintList(token) {
   printBody.innerHTML = entries.map(renderRow).join('') + renderSumRow(sumEntries(entries));
 }
 
+// Angemeldete Admins sehen die Liste direkt über die RLS-geschützte View
+// (print_list ist für authenticated gegrantet) - ohne Token nötig.
+async function loadPrintListAsAdmin() {
+  const { data, error } = await supabaseClient
+    .from('print_list')
+    .select('family_number, ew, ki, gf, ep, musl, hund, katze, sonstiges')
+    .order('family_number', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  renderEntries(data || []);
+}
+
+// Ohne Login: nur über einen gültigen, per Mail verschickten Token.
+async function loadPrintListByToken(token) {
+  const { data, error } = await supabaseClient.rpc('get_print_list_by_token', {
+    p_token: token
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  renderEntries(data || []);
+}
+
 function initDrucken() {
   const errorSection = document.getElementById('error-section');
   const errorMessage = document.getElementById('error-message');
   const printSection = document.getElementById('print-section');
   const printButton = document.getElementById('print-button');
+  const periodLabel = document.getElementById('period-label');
 
   if (!printSection || !errorSection) {
     return;
@@ -80,21 +96,38 @@ function initDrucken() {
     setStatus(errorMessage, message, 'error');
   }
 
-  const token = new URLSearchParams(window.location.search).get('token');
-
-  if (!token) {
-    showError('Ungültiger Link. Bitte benutze den Link aus der E-Mail.');
-    return;
+  function showPrint() {
+    errorSection.classList.add('hidden');
+    printSection.classList.remove('hidden');
   }
 
-  loadPrintList(token)
-    .then(function () {
-      printSection.classList.remove('hidden');
-    })
-    .catch(function (error) {
-      console.error('Supabase get_print_list_by_token error:', error);
-      showError('Dieser Link ist ungültig oder abgelaufen. Bitte warte auf die nächste E-Mail oder kontaktiere die Tafel.');
-    });
+  periodLabel.textContent = `Ausgabeliste für ${formatPeriodLabel()}`;
+
+  const token = new URLSearchParams(window.location.search).get('token');
+
+  requireSession(
+    function onAuthenticated() {
+      loadPrintListAsAdmin()
+        .then(showPrint)
+        .catch(function (error) {
+          console.error('Supabase print_list error:', error);
+          showError('Fehler beim Laden der Ausgabeliste.');
+        });
+    },
+    function onAnonymous() {
+      if (!token) {
+        showError('Ungültiger Link. Bitte benutze den Link aus der E-Mail.');
+        return;
+      }
+
+      loadPrintListByToken(token)
+        .then(showPrint)
+        .catch(function (error) {
+          console.error('Supabase get_print_list_by_token error:', error);
+          showError('Dieser Link ist ungültig oder abgelaufen. Bitte warte auf die nächste E-Mail oder kontaktiere die Tafel.');
+        });
+    }
+  );
 
   if (printButton) {
     printButton.addEventListener('click', function () {
