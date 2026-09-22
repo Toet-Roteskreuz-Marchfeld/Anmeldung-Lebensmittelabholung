@@ -60,12 +60,18 @@ function setStatus(element, message, type) {
   }
 }
 
-function wireLoginForm({ form, message, emailInput, fixedEmail, submitButton, onSuccess }) {
+function wireLoginForm({ form, message, emailInput, fixedEmail, onSuccess }) {
+  // form.elements includes every submit button associated with the form,
+  // including ones outside it via a form="..." attribute (like the header
+  // login/logout button) alongside regular nested ones.
+  function getSubmitButtons() {
+    return Array.from(form.elements).filter((el) => el.type === 'submit');
+  }
+
   // Browsers only treat a submit button as the form's "default button" for
   // Enter-key implicit submission when it's a DOM descendant of the form -
-  // not when it's merely associated via a form="..." attribute, which is
-  // how submitButton is wired here (it lives in the page header). Without
-  // this, Enter in the password field would silently do nothing.
+  // not when it's merely associated via a form="..." attribute. Handling
+  // Enter explicitly here covers both cases the same way.
   form.addEventListener('keydown', function (event) {
     if (event.key === 'Enter' && event.target.tagName === 'INPUT') {
       event.preventDefault();
@@ -78,11 +84,16 @@ function wireLoginForm({ form, message, emailInput, fixedEmail, submitButton, on
 
     const email = fixedEmail || emailInput.value.trim();
     const password = form.querySelector('input[type="password"]').value;
-    submitButton.disabled = true;
+    const submitButtons = getSubmitButtons();
+    submitButtons.forEach(function (button) {
+      button.disabled = true;
+    });
 
     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
-    submitButton.disabled = false;
+    submitButtons.forEach(function (button) {
+      button.disabled = false;
+    });
 
     if (error) {
       console.error('Supabase login error:', error);

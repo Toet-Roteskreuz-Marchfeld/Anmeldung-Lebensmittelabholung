@@ -34,7 +34,6 @@ function initClients() {
     form: loginForm,
     message: loginMessage,
     emailInput: document.getElementById('admin-email'),
-    submitButton: document.getElementById('header-auth-button'),
     onSuccess: showClients
   });
 
