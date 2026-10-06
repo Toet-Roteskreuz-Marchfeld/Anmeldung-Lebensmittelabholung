@@ -79,6 +79,20 @@ async function loadPrintListByToken(token) {
   renderEntries(data || []);
 }
 
+// Kopfzeile der Druckansicht: Ausgabedatum und Druckzeitpunkt. Beim Druck
+// (Button wie auch Strg+P) neu setzen, damit der Zeitstempel stimmt.
+function updatePrintMeta() {
+  document.getElementById('print-period').textContent = formatPeriodLabel();
+  document.getElementById('print-timestamp').textContent = new Intl.DateTimeFormat('de-AT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Vienna'
+  }).format(new Date());
+}
+
 function initDrucken() {
   const errorSection = document.getElementById('error-section');
   const errorMessage = document.getElementById('error-message');
@@ -102,6 +116,8 @@ function initDrucken() {
   }
 
   periodLabel.textContent = `Ausgabeliste für ${formatPeriodLabel()}`;
+  updatePrintMeta();
+  window.addEventListener('beforeprint', updatePrintMeta);
 
   const token = new URLSearchParams(window.location.search).get('token');
 

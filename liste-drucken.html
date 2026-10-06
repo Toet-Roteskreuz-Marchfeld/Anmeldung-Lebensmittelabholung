@@ -27,6 +27,15 @@
       </section>
 
       <section id="print-section" class="card results-card hidden">
+        <div class="print-header print-only">
+          <p class="print-org">Team Österreich Tafel Marchfeld</p>
+          <h1>Ausgabeliste</h1>
+          <p class="print-meta">
+            <span id="print-period"></span>
+            &middot; Gedruckt am <span id="print-timestamp"></span> Uhr
+          </p>
+        </div>
+
         <div class="results-header no-print">
           <h2 id="period-label">Ausgabeliste</h2>
           <div class="results-actions">
@@ -45,12 +54,17 @@
                 <th>Musl.</th>
                 <th>Hund</th>
                 <th>Katze</th>
-                <th>Sonst.</th>
+                <th>Sonstiges</th>
               </tr>
             </thead>
             <tbody id="print-body"></tbody>
           </table>
         </div>
+
+        <p class="print-legend print-only">
+          EW = Erwachsene &middot; Ki = Kinder &middot; EP = Einpersonenhaushalt
+          &middot; Musl. = muslimisch &middot; Hervorgehobene Nr. = Großfamilie
+        </p>
       </section>
     </main>
 
