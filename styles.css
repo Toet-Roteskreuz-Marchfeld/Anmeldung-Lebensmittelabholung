@@ -417,14 +417,21 @@ button.small {
     color: #333;
   }
 
-  @page {
-    size: A4 portrait;
-    margin: 15mm 12mm 18mm;
+}
 
-    @bottom-right {
-      content: 'Seite ' counter(page) ' von ' counter(pages);
-      font-size: 9pt;
-      color: #555;
-    }
+/* Papierformat und Ränder bewusst als eigene Regel auf oberster Ebene und
+   getrennt von der Seitenzahl: Browser ohne Unterstützung für Margin Boxes
+   (z. B. Firefox) verwerfen sonst unter Umständen die ganze @page-Regel und
+   drucken auf Druckerstandardformat (A3) ohne Rand. */
+@page {
+  size: A4 portrait;
+  margin: 15mm 12mm 18mm;
+}
+
+@page {
+  @bottom-right {
+    content: 'Seite ' counter(page) ' von ' counter(pages);
+    font-size: 9pt;
+    color: #555;
   }
 }
