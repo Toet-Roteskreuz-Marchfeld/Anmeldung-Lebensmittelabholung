@@ -183,6 +183,10 @@ button.secondary {
   max-width: 900px;
 }
 
+.admin-container.admin-wide {
+  max-width: none;
+}
+
 .admin-hero {
   margin-bottom: 18px;
 }
