@@ -86,6 +86,8 @@ function renderScreenTable(entries) {
 
 // ---- Druckansicht: die Gruppen nebeneinander (Abhakliste) ----
 
+// Anteile der Spalten (Kästchen, Nr., Köpfe/Tiere) an der Gruppenbreite.
+const GROUP_COL_FRACTIONS = [0.14, 0.24, 0.62];
 const GROUP_COLORS = ['#c0392b', '#2a6fb5', '#2e6b4a', '#7a4fa0'];
 
 function headcount(r) {
@@ -181,7 +183,7 @@ function renderGroupTable(entries) {
   // Feste, gleiche Spaltenbreiten pro Gruppe (in Prozent der Seitenbreite).
   const gapPercent = 4;
   const share = (100 - gapPercent * (columns.length - 1)) / columns.length;
-  const groupCols = [0.16, 0.3, 0.54]
+  const groupCols = GROUP_COL_FRACTIONS
     .map((f) => `<col style="width:${(share * f).toFixed(2)}%" />`)
     .join('');
   const colgroup = `<colgroup>${columns
@@ -225,8 +227,25 @@ function fitPrintLayout(entries) {
   const scaleFor = (orientation) =>
     Math.min(MAX_SCALE[orientation], AVAILABLE_MM[orientation] / (rows * ROW_MM));
 
-  const portrait = scaleFor('portrait');
-  const landscape = scaleFor('landscape');
+  // Zusätzlich darf die Schrift nicht so groß werden, dass der längste Eintrag
+  // ("2E/1K 🐕×2 🐈") nicht mehr in die Zelle passt. Breite in em geschätzt
+  // (Emoji ~1,3 em, sonstige Zeichen ~0,6 em).
+  const longestEm = Math.max(
+    1,
+    ...entries.map((r) => {
+      const label = `${headcount(r)} ${petsLabel(r)}`.trim();
+      return Array.from(label).reduce((sum, ch) => sum + (ch.codePointAt(0) > 0x2000 ? 1.3 : 0.6), 0);
+    })
+  );
+  const widthScaleFor = (pageWidthMm) => {
+    const groups = Math.max(1, counts.length);
+    const groupMm = (pageWidthMm - 2 * 10 - 0.04 * pageWidthMm * (groups - 1)) / groups;
+    const cellMm = groupMm * GROUP_COL_FRACTIONS[2] - 2.5;
+    return cellMm / (longestEm * 11 * 0.3528);
+  };
+
+  const portrait = Math.min(scaleFor('portrait'), widthScaleFor(210));
+  const landscape = Math.min(scaleFor('landscape'), widthScaleFor(297));
   const orientation = landscape > portrait * 1.05 ? 'landscape' : 'portrait';
   const scale = Math.max(MIN_SCALE, orientation === 'landscape' ? landscape : portrait);
 

@@ -432,6 +432,10 @@ button.small {
     color: #333;
   }
 
+  .group-table td.hc {
+    white-space: normal;
+  }
+
   .group-table .nr {
     font-weight: 700;
   }
