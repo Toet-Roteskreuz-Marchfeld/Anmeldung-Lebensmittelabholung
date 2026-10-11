@@ -32,7 +32,7 @@ function getPeriodSaturday(date = new Date()) {
   const dayOfWeek = wallClock.getUTCDay();
   let daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
 
-  if (daysUntilSaturday === 0 && p.hour >= 18) {
+  if (daysUntilSaturday === 0 && p.hour >= 19) {
     daysUntilSaturday = 7;
   }
 
@@ -41,15 +41,24 @@ function getPeriodSaturday(date = new Date()) {
   return saturday;
 }
 
+function formatSaturday(saturday, options) {
+  return new Intl.DateTimeFormat('de-DE', { ...options, timeZone: 'UTC' }).format(saturday);
+}
+
 function formatPeriodLabel(date = new Date()) {
-  const s = getPeriodSaturday(date);
-  return new Intl.DateTimeFormat('de-DE', {
+  return formatSaturday(getPeriodSaturday(date), {
     weekday: 'long',
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric',
-    timeZone: 'UTC'
-  }).format(s);
+    year: 'numeric'
+  });
+}
+
+// Samstag der Periode, die offset Wochen vor der aktuellen liegt (0 = aktuelle).
+function getPeriodSaturdayForOffset(offset) {
+  const saturday = getPeriodSaturday();
+  saturday.setUTCDate(saturday.getUTCDate() - 7 * offset);
+  return saturday;
 }
 
 function setStatus(element, message, type) {

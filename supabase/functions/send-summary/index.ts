@@ -1,5 +1,7 @@
 // Wird samstags per pg_cron aufgerufen (siehe README, Abschnitt
-// "Automatisierung"). Fasst die Einladungen der aktuellen Ausgabeperiode
+// "Automatisierung") und verschickt nur, wenn es in Wien gerade 9 Uhr ist
+// (pg_cron läuft in UTC und startet deshalb um 07:00 und 08:00 UTC; je nach
+// Sommer-/Winterzeit passt genau einer der beiden Aufrufe). Fasst die Einladungen der aktuellen Ausgabeperiode
 // zusammen - wer zugesagt, abgesagt oder noch nicht geantwortet hat - und
 // schickt das Ergebnis an alle Organisatoren. Liest direkt aus "invites"
 // (dort steht der Status ohnehin schon aktuell, angelegt von
@@ -68,7 +70,7 @@ function getPeriodSaturday(date: Date = new Date()) {
   const dayOfWeek = wallClock.getUTCDay();
   let daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
 
-  if (daysUntilSaturday === 0 && p.hour >= 18) {
+  if (daysUntilSaturday === 0 && p.hour >= 19) {
     daysUntilSaturday = 7;
   }
 
@@ -125,6 +127,7 @@ interface ClientRow {
   hund: number;
   katze: number;
   sonstiges: string | null;
+  gruppe: number | null;
 }
 
 function renderSection(title: string, names: string[]) {
@@ -157,6 +160,7 @@ function renderKommtTable(rows: ClientRow[]) {
       <tr>
         <td>${r.nummer}</td>
         <td>${r.name}</td>
+        <td>${r.gruppe ?? ''}</td>
         <td>${r.ew}</td>
         <td>${r.ki}</td>
         <td>${r.gf ? 'Ja' : ''}</td>
@@ -174,14 +178,14 @@ function renderKommtTable(rows: ClientRow[]) {
     <table border="1" cellpadding="6" cellspacing="0">
       <thead>
         <tr>
-          <th>Nr.</th><th>Name</th><th>EW</th><th>Ki</th><th>GF</th><th>EP</th>
+          <th>Nr.</th><th>Name</th><th>Gr.</th><th>EW</th><th>Ki</th><th>GF</th><th>EP</th>
           <th>Musl.</th><th>Hund</th><th>Katze</th><th>Sonstiges</th>
         </tr>
       </thead>
       <tbody>
         ${bodyRows}
         <tr>
-          <td colspan="2"><strong>Summe</strong></td>
+          <td colspan="3"><strong>Summe</strong></td>
           <td><strong>${sums.ew}</strong></td>
           <td><strong>${sums.ki}</strong></td>
           <td></td>
@@ -196,7 +200,21 @@ function renderKommtTable(rows: ClientRow[]) {
   `;
 }
 
-Deno.serve(async () => {
+const SEND_HOUR_VIENNA = 9;
+
+Deno.serve(async (req) => {
+  // Nur um 9 Uhr Wiener Zeit verschicken (siehe Kopfkommentar). Zum Testen
+  // außerhalb dieser Zeit: ?force=1 mit dem service_role-Key als Bearer-Token.
+  const forced =
+    new URL(req.url).searchParams.get('force') === '1' &&
+    req.headers.get('Authorization') === `Bearer ${SERVICE_ROLE_KEY}`;
+
+  if (!forced && getViennaParts().hour !== SEND_HOUR_VIENNA) {
+    return new Response(JSON.stringify({ skipped: 'not 09:00 Europe/Vienna' }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   // Dieselbe Grenze wie current_attendance_base/print_list, statt die
   // Vienna-Wochenlogik hier ein drittes Mal nachzubauen.
   const { data: periodStart, error: periodStartError } = await supabase.rpc('current_period_start');
@@ -209,7 +227,7 @@ Deno.serve(async () => {
   const [{ data: invites, error: invitesError }, { data: clients, error: clientsError }] =
     await Promise.all([
       supabase.from('invites').select('family_number, status').gte('created_at', periodStart),
-      supabase.from('clients').select('nummer, name, ew, ki, gf, ep, musl, hund, katze, sonstiges')
+      supabase.from('clients').select('nummer, name, ew, ki, gf, ep, musl, hund, katze, sonstiges, gruppe')
     ]);
 
   if (invitesError || clientsError) {
@@ -241,7 +259,8 @@ Deno.serve(async () => {
           musl: false,
           hund: 0,
           katze: 0,
-          sonstiges: null
+          sonstiges: null,
+          gruppe: null
         }
       );
     } else if (invite.status === 'nein') {

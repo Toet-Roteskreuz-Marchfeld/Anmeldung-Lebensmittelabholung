@@ -75,6 +75,29 @@
           </div>
 
           <div class="field-group">
+            <label for="client-knr">K-Nr.</label>
+            <input id="client-knr" type="number" min="1" step="1" />
+          </div>
+
+          <div class="field-group">
+            <label for="client-ean">EAN (8 oder 13 Ziffern)</label>
+            <input
+              id="client-ean"
+              type="text"
+              inputmode="numeric"
+              pattern="([0-9]{8}|[0-9]{13})"
+              placeholder="z. B. 4006381333931"
+            />
+          </div>
+
+          <div class="field-group">
+            <label for="client-gruppe">Gruppe</label>
+            <select id="client-gruppe">
+              <option value="">Keine Gruppe</option>
+            </select>
+          </div>
+
+          <div class="field-group">
             <label for="client-name">Name</label>
             <input id="client-name" type="text" required />
           </div>
@@ -156,6 +179,9 @@
             <thead>
               <tr>
                 <th>Nr.</th>
+                <th>K-Nr.</th>
+                <th>EAN</th>
+                <th>Gr.</th>
                 <th>Name</th>
                 <th>Telefon</th>
                 <th>E-Mail</th>
@@ -177,9 +203,12 @@
       </section>
     </main>
 
+    <div id="card-print" aria-hidden="true"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
     <script src="shared.js"></script>
+    <script src="family-card.js"></script>
     <script src="admin-clients.js"></script>
   </body>
 </html>

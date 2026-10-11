@@ -6,16 +6,18 @@ Datenbank gespeichert werden (kostenloser Tarif, EU-Hosting möglich) –
 dadurch sehen alle Familien und der Admin dieselben Daten, geräte- und
 browserübergreifend.
 
-- Jede Familie bekommt jeden Freitag automatisch eine E-Mail mit einem
-  persönlichen Link – ein Klick auf "Ja" oder "Nein" genügt, ein Login ist
-  nicht nötig
+- Jede Familie bekommt jeden Montag um 9 Uhr (Europe/Vienna) automatisch eine
+  E-Mail (deutsch, ukrainisch, kroatisch/serbisch) mit einem persönlichen
+  Link – ein Klick auf "Ja" oder "Nein" genügt, ein Login ist nicht nötig
 - Admin-Bereich mit echtem Login (Supabase Auth), inkl. Klientenverwaltung
-  (Name, Telefon, E-Mail, Haushaltsdaten)
-- Listen-Betrachter bekommen samstags einen personalisierten, 14 Tage
+  (Name, Telefon, E-Mail, Haushaltsdaten, K-Nr., EAN, Gruppe) und Druck der
+  Familienkarte (A6, zweiseitig mit Schnittmarken, EAN als Strichcode)
+- Listen-Betrachter bekommen samstags um 9 Uhr einen personalisierten, 14 Tage
   gültigen Link auf die druckbare Ausgabeliste (kein Login/Passwort nötig);
-  angemeldete Admins sehen dieselbe Liste direkt, ganz ohne Link/Token
+  angemeldete Admins sehen dieselbe Liste direkt, ganz ohne Link/Token. Die Liste zeigt in Tabs die aktuelle und die drei
+  vorigen Perioden; die Druckansicht zeigt die drei Gruppen nebeneinander
 - Ergebnisse werden automatisch nach der aktuellen Ausgabeperiode gefiltert
-- Am Samstagvormittag bekommt der Organisator automatisch eine
+- Samstags um 9 Uhr bekommt der Organisator automatisch eine
   Zusammenfassung per E-Mail (Zusagen/Absagen/offene Antworten)
 
 ## Dateien
@@ -24,11 +26,13 @@ browserübergreifend.
 - `antwort.html` / `antwort.js` – Ziel der personalisierten E-Mail-Links, speichert Ja/Nein anhand des Tokens
 - `admin-clients.html` / `admin-clients.js` – login-geschützte Klientenverwaltung (Admin-Bereich)
 - `liste-drucken.html` / `liste-drucken.js` – druckbare Ausgabeliste; für angemeldete Admins direkt sichtbar, sonst Ziel der personalisierten Listen-Links (Token in der URL)
+- `family-card.js` – Familienkarte (A6 auf A4, Schnittmarken, EAN-Strichcode), eingebunden in `admin-clients.html`
+- `supabase/sql/002-gruppen-perioden.sql` – Migration: Tabelle `gruppen`, Spalten `gruppe`/`k_nr`/`ean`, Periodengrenze Samstag 19 Uhr, `get_print_list()`
 - `styles.css` – Layout und Design
 - `shared.js` – gemeinsame Logik für alle Seiten (Supabase-Client, Perioden-Berechnung, Login-Helfer)
 - `supabase-config.js` – Zugangsdaten zum eigenen Supabase-Projekt (URL + anon-Key)
-- `supabase/functions/send-weekly-invites` – Edge Function: verschickt freitags die personalisierten Einladungs-Mails
-- `supabase/functions/send-summary` – Edge Function: verschickt samstags die Zusammenfassung an den Organisator
+- `supabase/functions/send-weekly-invites` – Edge Function: verschickt montags 9 Uhr die personalisierten Einladungs-Mails
+- `supabase/functions/send-summary` – Edge Function: verschickt samstags 9 Uhr die Zusammenfassung an die Organisatoren und die Listen-Links
 
 ## Supabase-Setup (einmalig)
 
@@ -359,6 +363,15 @@ browserübergreifend.
    grant execute on function public.get_print_list_by_token(uuid) to anon;
    ```
 
+   **Bestehende Installation / neue Funktionen:** danach zusätzlich
+   `supabase/sql/002-gruppen-perioden.sql` im SQL Editor ausführen. Das
+   Skript legt die Tabelle `gruppen` an (Gruppe 1/2/3 = Samstag 18:30 /
+   19:00 / 19:30 Uhr), ergänzt `clients` um `gruppe`, `k_nr` und `ean`,
+   verschiebt die Periodengrenze auf **Samstag 19 Uhr** und ersetzt
+   `print_list`/`get_print_list_by_token()` durch `get_print_list()` (Perioden
+   0-3). Die Skripte oben beschreiben noch den Stand davor (Grenze 18 Uhr).
+   Danach Webseite und beide Edge Functions neu hochladen.
+
 4. Unter **Authentication → Users** einen Admin-Account per "Add user"
    anlegen (E-Mail + Passwort). Damit meldet man sich später in
    `admin-clients.html` an. Es sind keine öffentlichen Registrierungen
@@ -437,7 +450,7 @@ werden.
    Organisatoren bekommen die volle Zusammenfassung mit Namen,
    Listen-Betrachter einen personalisierten, 14 Tage gültigen Link auf die
    anonymisierte Ausgabeliste (`liste-drucken.html?token=...`, siehe
-   `get_print_list_by_token()` oben).
+   `get_print_list()` in `002-gruppen-perioden.sql`).
 4. Im **SQL Editor** `pg_cron`/`pg_net` aktivieren, den Service-Role-Key
    sicher im Vault ablegen (nicht direkt im Cron-Job-SQL, das für jeden mit
    DB-Zugriff lesbar wäre) und die beiden wöchentlichen Aufrufe einrichten.
@@ -465,16 +478,16 @@ werden.
    select vault.create_secret('DEIN-SERVICE-ROLE-KEY', 'service_role_key');
 
    -- pg_cron rechnet ausschließlich in UTC und kennt keine Sommer-/
-   -- Winterzeit-Umstellung. Europe/Vienna liegt bei UTC+1 (MEZ, Winter)
-   -- bzw. UTC+2 (MESZ, Sommer) - die Uhrzeiten unten sind auf MEZ
-   -- abgestimmt und laufen im Sommer eine Stunde später als angegeben. Wer
-   -- eine feste lokale Uhrzeit braucht, muss zweimal im Jahr per
-   -- `select cron.alter_job(job_id, schedule := '...')` nachjustieren.
+   -- Winterzeit-Umstellung. Deshalb laufen beide Jobs zu den zwei möglichen
+   -- UTC-Zeiten (07:00 und 08:00); die Edge Functions verschicken nur, wenn
+   -- es in Europe/Vienna gerade 9 Uhr ist (der andere Aufruf tut nichts).
+   -- Bei bestehenden Jobs zuerst `select cron.unschedule('send-weekly-invites');`
+   -- bzw. `... 'send-summary'` ausführen.
 
-   -- Freitag 08:00 Uhr MEZ.
+   -- Montag 09:00 Uhr Wiener Zeit.
    select cron.schedule(
      'send-weekly-invites',
-     '0 7 * * 5',
+     '0 7,8 * * 1',
      $$
      select net.http_post(
        url := 'https://DEIN-PROJEKT-REF.functions.supabase.co/send-weekly-invites',
@@ -490,10 +503,10 @@ werden.
      $$
    );
 
-   -- Samstag 10:00 Uhr MEZ.
+   -- Samstag 09:00 Uhr Wiener Zeit.
    select cron.schedule(
      'send-summary',
-     '0 9 * * 6',
+     '0 7,8 * * 6',
      $$
      select net.http_post(
        url := 'https://DEIN-PROJEKT-REF.functions.supabase.co/send-summary',
@@ -509,15 +522,17 @@ werden.
      $$
    );
    ```
-5. Testen, ohne auf den Cron zu warten - per curl mit dem `anon`-Key als
-   Bearer-Token (aus `supabase-config.js` bzw. Settings → API; Projekt-Ref
+5. Testen, ohne auf den Cron zu warten - außerhalb von 9 Uhr Wiener Zeit
+   antworten die Functions mit `skipped`. Mit angehängtem `?force=1` und dem
+   `service_role`-Key als Bearer-Token wird trotzdem verschickt. Beispiel
+   per curl (aus `supabase-config.js` bzw. Settings → API; Projekt-Ref
    wie in Schritt 4):
 
    ```bash
    curl -i --request POST 'https://DEIN-PROJEKT-REF.functions.supabase.co/send-weekly-invites' \
-     --header 'Authorization: Bearer DEIN-ANON-KEY'
+     --header 'Authorization: Bearer DEIN-SERVICE-ROLE-KEY'
    curl -i --request POST 'https://DEIN-PROJEKT-REF.functions.supabase.co/send-summary' \
-     --header 'Authorization: Bearer DEIN-ANON-KEY'
+     --header 'Authorization: Bearer DEIN-SERVICE-ROLE-KEY'
    ```
 
    Ergebnis und Fehler lassen sich unter **Edge Functions → [Funktion] →
@@ -587,7 +602,7 @@ Die Seite läuft unter der eigenen Domain **www.toet-marchfeld.at**, hinterlegt
 Die Tafel-Ausgabe findet immer samstags statt. `attendance` speichert dafür
 keine eigene Perioden-Kennung – jede An-/Abmeldung ist einfach eine neue
 Zeile mit ihrem `created_at`-Zeitstempel. Ob eine Zeile zur **aktuellen
-Ausgabeperiode (Samstag 18 Uhr bis zum folgenden Samstag 18 Uhr, Zeitzone
+Ausgabeperiode (Samstag 19 Uhr bis zum folgenden Samstag 19 Uhr, Zeitzone
 Europa/Wien)** gehört, wird bei jeder Abfrage aus `created_at` berechnet –
 serverseitig über die SQL-Funktion `current_period_start()`, im Browser über
 `getPeriodSaturday()`/`formatPeriodLabel()` in `shared.js` und in beiden
@@ -596,11 +611,11 @@ Funktionen (nur für Anzeige bzw. Mail-Texte, nicht mehr für die
 eigentliche Filterung von Abfragen).
 Mehrfache An-/Abmeldungen derselben Familie innerhalb einer Periode sind
 kein Problem – die zeitlich neueste zählt (`current_attendance_base`/
-`print_list` wählen das automatisch aus). Alte Perioden werden nicht
+`get_print_list()` wählen das automatisch aus). Alte Perioden werden nicht
 gelöscht, sondern bleiben unverändert in der Datenbank erhalten.
 
 Ausgelöst wird eine Periode durch die Edge Function `send-weekly-invites`
-(freitags per `pg_cron`), die für jeden aktiven Klienten mit E-Mail-Adresse
+(montags 9 Uhr per `pg_cron`), die für jeden aktiven Klienten mit E-Mail-Adresse
 eine neue `invites`-Zeile mit einem frischen Token anlegt (status `offen`)
 und einen Link mit genau diesem Token schickt. Ein Klick auf "Ja" oder
 "Nein" ruft `antwort.html` auf, das den Token gegen

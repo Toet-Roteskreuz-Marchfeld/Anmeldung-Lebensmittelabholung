@@ -15,11 +15,13 @@ function initClients() {
   }
 
   let clients = [];
+  let gruppen = [];
+  const gruppeSelect = document.getElementById('client-gruppe');
 
   function showClients() {
     loginSection.classList.add('hidden');
     clientsSection.classList.remove('hidden');
-    loadClients();
+    loadGruppen().then(loadClients);
   }
 
   function showLogin() {
@@ -56,6 +58,9 @@ function initClients() {
   function fillForm(client) {
     document.getElementById('client-id').value = client.id;
     document.getElementById('client-nummer').value = client.nummer;
+    document.getElementById('client-knr').value = client.k_nr ?? '';
+    document.getElementById('client-ean').value = client.ean ?? '';
+    gruppeSelect.value = client.gruppe ?? '';
     document.getElementById('client-name').value = client.name;
     document.getElementById('client-telefon').value = client.telefon ?? '';
     document.getElementById('client-email').value = client.email ?? '';
@@ -75,8 +80,18 @@ function initClients() {
     event.preventDefault();
 
     const id = document.getElementById('client-id').value;
+    const ean = document.getElementById('client-ean').value.trim();
+
+    if (ean && !isValidEan(ean)) {
+      setStatus(formMessage, 'Der EAN ist ungültig (Länge oder Prüfziffer stimmt nicht).', 'error');
+      return;
+    }
+
     const payload = {
       nummer: Number(document.getElementById('client-nummer').value),
+      k_nr: Number(document.getElementById('client-knr').value) || null,
+      ean: ean || null,
+      gruppe: Number(gruppeSelect.value) || null,
       name: document.getElementById('client-name').value.trim(),
       telefon: document.getElementById('client-telefon').value.trim() || null,
       email: document.getElementById('client-email').value.trim() || null,
@@ -102,7 +117,7 @@ function initClients() {
 
     if (error) {
       console.error('Supabase clients save error:', error);
-      setStatus(formMessage, 'Fehler beim Speichern. Sind Nummer oder E-Mail bereits vergeben?', 'error');
+      setStatus(formMessage, 'Fehler beim Speichern. Sind Nummer, K-Nr., EAN oder E-Mail bereits vergeben?', 'error');
       return;
     }
 
@@ -113,6 +128,17 @@ function initClients() {
   clientsBody.addEventListener('click', async function (event) {
     const editId = event.target.dataset.editId;
     const deleteId = event.target.dataset.deleteId;
+    const cardId = event.target.dataset.cardId;
+
+    if (cardId) {
+      const client = clients.find((c) => String(c.id) === cardId);
+      if (client && !client.ean) {
+        window.alert('Für diesen Klienten ist noch kein EAN hinterlegt.');
+      } else if (client) {
+        printFamilyCard(client);
+      }
+      return;
+    }
 
     if (editId) {
       const client = clients.find((c) => String(c.id) === editId);
@@ -159,7 +185,7 @@ function initClients() {
 
   function renderClients(list) {
     if (list.length === 0) {
-      clientsBody.innerHTML = '<tr><td colspan="14">Keine Klienten gefunden.</td></tr>';
+      clientsBody.innerHTML = '<tr><td colspan="17">Keine Klienten gefunden.</td></tr>';
       return;
     }
 
@@ -168,6 +194,9 @@ function initClients() {
         (c) => `
         <tr>
           <td>${c.nummer}</td>
+          <td>${c.k_nr ?? ''}</td>
+          <td>${c.ean ?? ''}</td>
+          <td>${c.gruppe ?? ''}</td>
           <td>${c.name}</td>
           <td>${c.telefon ?? ''}</td>
           <td>${c.email ?? ''}</td>
@@ -181,12 +210,32 @@ function initClients() {
           <td>${c.katze}</td>
           <td>${c.sonstiges ?? ''}</td>
           <td class="row-actions">
+            <button type="button" class="secondary small" data-card-id="${c.id}">Karte</button>
             <button type="button" class="secondary small" data-edit-id="${c.id}">Bearbeiten</button>
             <button type="button" class="secondary small" data-delete-id="${c.id}">Löschen</button>
           </td>
         </tr>`
       )
       .join('');
+  }
+
+  async function loadGruppen() {
+    const { data, error } = await supabaseClient
+      .from('gruppen')
+      .select('nummer, name, abholzeit')
+      .order('nummer', { ascending: true });
+
+    if (error) {
+      console.error('Supabase gruppen load error:', error);
+      return;
+    }
+
+    gruppen = data || [];
+    gruppeSelect.innerHTML =
+      '<option value="">Keine Gruppe</option>' +
+      gruppen
+        .map((g) => `<option value="${g.nummer}">${g.name} (${String(g.abholzeit).slice(0, 5)} Uhr)</option>`)
+        .join('');
   }
 
   async function loadClients() {
@@ -197,7 +246,7 @@ function initClients() {
 
     if (error) {
       console.error('Supabase clients load error:', error);
-      clientsBody.innerHTML = '<tr><td colspan="14">Fehler beim Laden der Klienten.</td></tr>';
+      clientsBody.innerHTML = '<tr><td colspan="17">Fehler beim Laden der Klienten.</td></tr>';
       return;
     }
 

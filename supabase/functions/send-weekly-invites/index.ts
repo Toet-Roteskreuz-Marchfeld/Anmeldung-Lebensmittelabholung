@@ -1,11 +1,14 @@
-// Wird freitags per pg_cron aufgerufen (siehe README, Abschnitt
-// "Automatisierung"). Legt für jeden aktiven Klienten mit E-Mail-Adresse
+// Wird montags per pg_cron aufgerufen (siehe README, Abschnitt
+// "Automatisierung") und verschickt nur, wenn es in Wien gerade 9 Uhr ist
+// (pg_cron läuft in UTC und startet deshalb um 07:00 und 08:00 UTC; je nach
+// Sommer-/Winterzeit passt genau einer der beiden Aufrufe). Legt für jeden aktiven Klienten mit E-Mail-Adresse
 // eine neue "invites"-Zeile mit einem frischen Token an (status 'offen')
 // und schickt einen personalisierten Link mit genau diesem Token - je
 // einen zum direkten Zusagen und einen zum direkten Absagen. Ein älterer
 // Token aus einer vorigen Einladung wird damit automatisch ungültig, weil
 // submit_attendance_by_token() nur den jeweils neuesten Token pro
-// Familiennummer akzeptiert.
+// Familiennummer akzeptiert. Die Mail ist deutsch, ukrainisch und
+// kroatisch/serbisch (lateinische Schrift) formuliert.
 //
 // Benötigte Secrets (per `supabase secrets set` gesetzt, siehe README):
 //   RESEND_API_KEY - API-Key von resend.com
@@ -64,7 +67,7 @@ function getPeriodSaturday(date: Date = new Date()) {
   const dayOfWeek = wallClock.getUTCDay();
   let daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
 
-  if (daysUntilSaturday === 0 && p.hour >= 18) {
+  if (daysUntilSaturday === 0 && p.hour >= 19) {
     daysUntilSaturday = 7;
   }
 
@@ -73,9 +76,9 @@ function getPeriodSaturday(date: Date = new Date()) {
   return saturday;
 }
 
-function formatPeriodLabel(date: Date = new Date()) {
+function formatPeriodLabel(date: Date = new Date(), locale = 'de-DE') {
   const s = getPeriodSaturday(date);
-  return new Intl.DateTimeFormat('de-DE', {
+  return new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     day: '2-digit',
     month: '2-digit',
@@ -96,19 +99,47 @@ interface Client {
   nummer: number;
   name: string;
   email: string;
+  gruppe: number | null;
 }
 
-async function sendInvite(client: Client, token: string, dateLabel: string) {
+async function sendInvite(client: Client, token: string, abholzeit: string | null) {
   const link = (wahl: 'ja' | 'nein') => `${SITE_URL}/antwort.html?token=${token}&wahl=${wahl}`;
+  const de = formatPeriodLabel(new Date(), 'de-DE');
+  const uk = formatPeriodLabel(new Date(), 'uk-UA');
+  const hr = formatPeriodLabel(new Date(), 'hr-HR');
+
+  const slot = (text: (g: number, t: string) => string) =>
+    abholzeit && client.gruppe ? `<p>${text(client.gruppe, abholzeit)}</p>` : '';
 
   const html = `
-    <p>Hallo ${client.name},</p>
-    <p>kommst du am <strong>${dateLabel}</strong> zur Tafel-Ausgabe?</p>
-    <p>
-      <a href="${link('ja')}">Ja, ich komme</a>
-      &nbsp;|&nbsp;
-      <a href="${link('nein')}">Nein, ich komme nicht</a>
-    </p>
+    <div style="max-width:560px;font-family:Arial,Helvetica,sans-serif;line-height:1.5">
+      <h3 style="margin-bottom:4px">Deutsch</h3>
+      <p>Hallo ${client.name},</p>
+      <p>kommst du zur Tafel-Ausgabe? Termin: <strong>${de}</strong></p>
+      ${slot((g, t) => `Deine Gruppe: <strong>${g}</strong>, Abholzeit: <strong>${t} Uhr</strong>`)}
+      <p>
+        <a href="${link('ja')}">&#10004; Ja, ich komme</a><br />
+        <a href="${link('nein')}">&#10008; Nein, ich komme nicht</a>
+      </p>
+      <hr />
+      <h3 style="margin-bottom:4px">Українська</h3>
+      <p>Доброго дня, ${client.name}!</p>
+      <p>Чи прийдете ви на видачу продуктів Tafel? Дата: <strong>${uk}</strong></p>
+      ${slot((g, t) => `Ваша група: <strong>${g}</strong>, час видачі: <strong>${t}</strong>`)}
+      <p>
+        <a href="${link('ja')}">&#10004; Так, я прийду</a><br />
+        <a href="${link('nein')}">&#10008; Ні, я не прийду</a>
+      </p>
+      <hr />
+      <h3 style="margin-bottom:4px">Hrvatski / Srpski</h3>
+      <p>Dobar dan, ${client.name}!</p>
+      <p>Dolazite li na podjelu namirnica (Tafel)? Termin: <strong>${hr}</strong></p>
+      ${slot((g, t) => `Vaša grupa: <strong>${g}</strong>, termin preuzimanja: <strong>${t}</strong>`)}
+      <p>
+        <a href="${link('ja')}">&#10004; Da, dolazim</a><br />
+        <a href="${link('nein')}">&#10008; Ne, ne dolazim</a>
+      </p>
+    </div>
   `;
 
   const response = await fetch('https://api.resend.com/emails', {
@@ -120,7 +151,7 @@ async function sendInvite(client: Client, token: string, dateLabel: string) {
     body: JSON.stringify({
       from: FROM_EMAIL,
       to: [client.email],
-      subject: `Kommst du am ${dateLabel}?`,
+      subject: `Tafel Marchfeld ${de} · ${uk} · ${hr}`,
       html
     })
   });
@@ -130,7 +161,7 @@ async function sendInvite(client: Client, token: string, dateLabel: string) {
   }
 }
 
-async function inviteClient(client: Client, dateLabel: string) {
+async function inviteClient(client: Client, abholzeiten: Map<number, string>) {
   const { data: invite, error } = await supabase
     .from('invites')
     .insert({ family_number: client.nummer })
@@ -142,23 +173,46 @@ async function inviteClient(client: Client, dateLabel: string) {
     return;
   }
 
-  await sendInvite(client, invite.token, dateLabel);
+  await sendInvite(client, invite.token, client.gruppe ? (abholzeiten.get(client.gruppe) ?? null) : null);
 }
 
-Deno.serve(async () => {
-  const { data: clients, error } = await supabase
-    .from('clients')
-    .select('nummer, name, email')
-    .eq('aktiv', true)
-    .not('email', 'is', null);
+const SEND_HOUR_VIENNA = 9;
 
-  if (error) {
-    console.error('Fehler beim Laden der Klienten:', error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+Deno.serve(async (req) => {
+  // Nur um 9 Uhr Wiener Zeit verschicken (siehe Kopfkommentar). Zum Testen
+  // außerhalb dieser Zeit: ?force=1 mit dem service_role-Key als Bearer-Token.
+  const forced =
+    new URL(req.url).searchParams.get('force') === '1' &&
+    req.headers.get('Authorization') === `Bearer ${SERVICE_ROLE_KEY}`;
+
+  if (!forced && getViennaParts().hour !== SEND_HOUR_VIENNA) {
+    return new Response(JSON.stringify({ skipped: 'not 09:00 Europe/Vienna' }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
-  const dateLabel = formatPeriodLabel();
-  await Promise.all((clients ?? []).map((c) => inviteClient(c as Client, dateLabel)));
+  const [{ data: clients, error }, { data: gruppen, error: gruppenError }] = await Promise.all([
+    supabase
+      .from('clients')
+      .select('nummer, name, email, gruppe')
+      .eq('aktiv', true)
+      .not('email', 'is', null),
+    supabase.from('gruppen').select('nummer, abholzeit')
+  ]);
+
+  if (error || gruppenError) {
+    console.error('Fehler beim Laden der Daten:', error ?? gruppenError);
+    return new Response(JSON.stringify({ error: (error ?? gruppenError)?.message }), {
+      status: 500
+    });
+  }
+
+  // "18:30:00" -> "18:30"
+  const abholzeiten = new Map<number, string>(
+    (gruppen ?? []).map((g) => [g.nummer, String(g.abholzeit).slice(0, 5)])
+  );
+
+  await Promise.all((clients ?? []).map((c) => inviteClient(c as Client, abholzeiten)));
 
   return new Response(JSON.stringify({ sent: clients?.length ?? 0 }), {
     headers: { 'Content-Type': 'application/json' }
