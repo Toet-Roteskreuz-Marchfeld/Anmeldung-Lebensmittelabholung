@@ -30,7 +30,7 @@ function periodTabLabel(offset) {
     day: '2-digit',
     month: '2-digit'
   });
-  return offset === 0 ? `Aktuell (${date}.)` : `Sa ${date}.`;
+  return offset === 0 ? `Aktuell (${date})` : `Sa ${date}`;
 }
 
 function periodLabelFor(offset) {
