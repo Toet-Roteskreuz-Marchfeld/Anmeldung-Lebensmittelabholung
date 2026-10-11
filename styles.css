@@ -407,8 +407,13 @@ td.row-actions button + button {
     color: #222;
   }
 
+  /* Rahmen pro Zelle (rechts/unten, plus links/oben am Rand) statt
+     border-collapse: kollabierte Haarlinien gehen bei gebrochenen
+     Spaltenbreiten sonst teilweise verloren. */
   .group-table {
     table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
     border: none;
     font-size: calc(11pt * var(--print-scale, 1));
   }
@@ -424,10 +429,27 @@ td.row-actions button + button {
   .group-table th,
   .group-table td {
     padding: calc(2pt * var(--print-scale, 1)) 3pt;
-    border: 0.75pt solid #000;
+    border: none;
     text-align: center;
     overflow: hidden;
     white-space: nowrap;
+  }
+
+  .group-table td.cb,
+  .group-table td.nr,
+  .group-table td.hc {
+    border-right: 1px solid #000;
+    border-bottom: 1px solid #000;
+  }
+
+  .group-table td.cb {
+    border-left: 1px solid #000;
+  }
+
+  .group-table tbody tr:first-child td.cb,
+  .group-table tbody tr:first-child td.nr,
+  .group-table tbody tr:first-child td.hc {
+    border-top: 1px solid #000;
   }
 
   .group-table .group-title {
